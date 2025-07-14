@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="./NeuralEngine.jpg" alt="NeuralEngine Cover" width="600" />
+    <img src="https://raw.githubusercontent.com/Prajjwal2404/NeuralEngine/refs/heads/main/NeuralEngine.jpg" alt="NeuralEngine Cover" width="600" />
 </p>
 
 <p align="center">
@@ -7,13 +7,15 @@
         <img src="https://img.shields.io/github/commit-activity/m/Prajjwal2404/NeuralEngine" /></a>
     <a href="https://github.com/Prajjwal2404/NeuralEngine/graphs/contributors" alt="Contributors">
         <img src="https://img.shields.io/github/contributors/Prajjwal2404/NeuralEngine" /></a>
+    <a href="https://pypi.org/project/NeuralEngine" alt="PyPI">
+        <img src="https://img.shields.io/pypi/v/NeuralEngine?color=brightgreen&label=PyPI" /></a>
     <a href="https://www.python.org/">
         <img src="https://img.shields.io/badge/language-Python-blue">
     </a>
     <a href="mailto:prajjwalpratapshah@outlook.com">
         <img src="https://img.shields.io/badge/-Email-red?style=flat-square&logo=gmail&logoColor=white">
     </a>
-    <a href="https://www.linkedin.com/in/prajjwal2404/">
+    <a href="https://www.linkedin.com/in/prajjwal2404">
         <img src="https://img.shields.io/badge/-Linkedin-blue?style=flat-square&logo=linkedin">
     </a>
 </p>
@@ -111,6 +113,7 @@ neuralengine/
 setup.py
 requirements.txt
 pyproject.toml
+MANIFEST.in
 LICENSE
 README.md
 ```
@@ -146,6 +149,7 @@ NeuralEngine offers the following core capabilities:
     - If attention is enabled, the hidden state shape is `(batch, hidden_units + input_size[-1])`.
     - If subsequent layers require state initializations from prior layers, set the hidden units accordingly to match the output shape of the previous LSTM (including adjustments for bidirectionality and attention).
 - `ne.MultiplicativeAttention(units)`: Dot-product attention mechanism for sequence models.
+- `ne.MultiHeadSelfAttention(num_heads=1, in_size=None)`: Multi-head self-attention layer for transformer and sequence models.
 - `ne.Embedding(embed_size, vocab_size, n_timesteps=None)`: Embedding layer for mapping indices to dense vectors, with optional positional encoding.
 - `ne.LayerNorm(norm_shape, eps=1e-7)`: Layer normalization for stabilizing training.
 - `ne.Dropout(prob=0.5)`: Dropout regularization for reducing overfitting.

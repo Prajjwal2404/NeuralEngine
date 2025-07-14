@@ -1,0 +1,5 @@
+neuralengine/__pycache__
+dist/
+build/
+neuralengine.egg-info/
+neuralengine/nn/__pycache__

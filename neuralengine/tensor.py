@@ -703,13 +703,13 @@ class SetSlice:
         return self.result
 
     def _deriv(self):
-        # Gradient is placed at the sliced indices
+        # Gradient is placed at the non-sliced indices
         if self.tensor.requires_grad:
-            grad = cf.nu.zeros_like(self.tensor.data)
-            grad[self.index] = self.result.grad[self.index]
+            grad = self.result.grad.copy()
+            grad[self.index] = 0
             self.tensor.grad += grad
             self.tensor._backward(self.result)
-
+        # Gradient is placed at the sliced indices
         if self.value.requires_grad:
             grad = self.result.grad[self.index]
             self.value.grad += grad

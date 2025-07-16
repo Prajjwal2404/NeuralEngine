@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://raw.githubusercontent.com/Prajjwal2404/NeuralEngine/refs/heads/main/NeuralEngine.jpg" alt="NeuralEngine Cover" width="600" />
+    <img src="https://raw.githubusercontent.com/Prajjwal2404/NeuralEngine/refs/heads/main/NeuralEngine.webp" alt="NeuralEngine Cover" width="600" />
 </p>
 
 <p align="center">
@@ -134,9 +134,9 @@ NeuralEngine offers the following core capabilities:
   - Matrix multiplication: `@`
   - Mathematical: `log`, `sqrt`, `exp`, `abs`
   - Reductions: `sum`, `max`, `min`, `mean`, `var`
-  - Shape: `transpose`, `reshape`, `concatenate`, `stack`, `slice`
-  - Elementwise: `where`, `masked_fill`
-  - Comparison: `>`, `>=`, `<`, `<=`
+  - Shape: `transpose`, `reshape`, `concatenate`, `stack`, `slice`, `set_slice`
+  - Elementwise: `masked_fill`
+  - Comparison: `==`, `!=`, `>`, `>=`, `<`, `<=`
   - Utility: `zero_grad()` (reset gradients)
   - Autograd: `backward()` (compute gradients for the computation graph)
 
@@ -191,7 +191,7 @@ NeuralEngine offers the following core capabilities:
 
 ### Utilities
 - Tensor creation: `tensor(data, requires_grad=False)`, `zeros(shape)`, `ones(shape)`, `rand(shape)`, `randn(shape, xavier=False)`, `randint(low, high, shape)` and their `_like` variants for matching shapes.
-- Tensor operations: `sum`, `max`, `min`, `mean`, `var`, `log`, `sqrt`, `exp`, `abs`, `concat`, `stack`, `where`, `clip` for elementwise and reduction operations.
+- Tensor operations: `sum`, `max`, `min`, `mean`, `var`, `log`, `sqrt`, `exp`, `abs`, `concat`, `stack`, `where`, `clip`, `array(data, dtype=...)` for elementwise, reduction, and conversion operations.
 - Encoding: `one_hot(labels, num_classes=None)` for converting integer labels to one-hot encoding.
 
 ### Extensibility

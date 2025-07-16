@@ -104,6 +104,18 @@ class Tensor:
         """New = A[index]"""
         return Slice(self, index)()
     
+    def __setitem__(self, index, value):
+        """A[index] = value"""
+        return SetSlice(self, index, value)()
+
+    def __eq__(self, value):
+        """New = A == B"""
+        return self.data == array(value)
+    
+    def __ne__(self, value):
+        """New = A != B"""
+        return self.data != array(value)
+
     def __gt__(self, other):
         """New = A > B"""
         return self.data > array(other)
@@ -167,12 +179,12 @@ class Tensor:
         """
         return Reshape(self, shape)()
     
-    def where(self, condition, value):
-        """Elementwise where operation.
-        @param condition: Condition tensor
-        @param value: Value tensor for elements where condition is False
+    def masked_fill(self, mask, fill):
+        """Fill elements where mask is True with fill value.
+        @param mask: Boolean mask to select elements
+        @param fill: Value to fill where mask is True
         """
-        return MaskedFill(self, condition, value)()
+        return MaskedFill(fill, mask, self)()
 
     def zero_grad(self) -> None:
         """Reset gradients to zero."""
@@ -187,7 +199,10 @@ class Tensor:
 
     def _backward(self, child):
         """internal method to handle backward pass."""
-        self._children.remove(child)
+        for i, c in enumerate(self._children):
+            if c is child:
+                del self._children[i]
+                break
         if self.requires_grad and not self._children:
             self._operation()
 
@@ -669,6 +684,36 @@ class Slice:
             grad[self.index] = self.result.grad
             self.tensor.grad += grad
             self.tensor._backward(self.result)
+
+
+class SetSlice:
+    def __init__(self, tensor, index, value):
+        self.tensor = tensor if isinstance(tensor, Tensor) else Tensor(tensor)
+        self.index = index.astype(cf.nu.int32) if isinstance(index, cf.nu.ndarray) else index
+        self.value = value if isinstance(value, Tensor) else Tensor(value)
+
+    def __call__(self):
+        requires_grad = self.tensor.requires_grad or self.value.requires_grad
+        operation = self._deriv if requires_grad else lambda: None
+
+        data = self.tensor.data.copy()
+        data[self.index] = self.value.data
+
+        self.result = Tensor(data, requires_grad=requires_grad, _operation=operation)
+        return self.result
+
+    def _deriv(self):
+        # Gradient is placed at the sliced indices
+        if self.tensor.requires_grad:
+            grad = cf.nu.zeros_like(self.tensor.data)
+            grad[self.index] = self.result.grad[self.index]
+            self.tensor.grad += grad
+            self.tensor._backward(self.result)
+
+        if self.value.requires_grad:
+            grad = self.result.grad[self.index]
+            self.value.grad += grad
+            self.value._backward(self.result)
 
 
 

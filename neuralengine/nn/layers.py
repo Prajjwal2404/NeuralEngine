@@ -114,7 +114,7 @@ class LSTM(Layer):
         @param return_seq: Return hidden states for all timesteps.
         @param return_state: Return final cell and hidden states.
         @param bidirectional: Use bidirectional LSTM.
-        @param use_output: Output selection (0: all hidden states, -2: cell state, -1: last hidden state).
+        @param use_output: Output selection (-3: all hidden states, -2: cell state, -1: last hidden state).
         """
         super().__init__()
         self.has_bias = bias
@@ -327,8 +327,8 @@ class Dropout(Layer):
         if self.mode == Mode.EVAL:
             return x
         
-        mask = rand(x.shape) > self.prob
-        z = x.where(mask, 0)
+        mask = rand(x.shape) < self.prob
+        z = x.masked_fill(mask, 0)
         z /= (1 - self.prob)
         return z
 

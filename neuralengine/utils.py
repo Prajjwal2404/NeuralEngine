@@ -215,8 +215,8 @@ def clip(tensor: Tensor, min, max) -> Tensor:
     @param max: Maximum value
     """
     # min/max clipping
-    tensor = tensor.where(tensor >= min, min)
-    tensor = tensor.where(tensor <= max, max)
+    tensor = tensor.masked_fill(tensor < min, min)
+    tensor = tensor.masked_fill(tensor > max, max)
     return tensor
 
 def one_hot(labels, num_classes: int | None = None) -> Tensor:

@@ -207,7 +207,7 @@ class MultiplicativeAttention(Layer):
     def forward(self, h: Tensor, x: Tensor) -> Tensor:
         # scores = (q.Wa.xᵗ) / √d_k
         q = h.reshape(h.shape[0], 1, -1)
-        scores = (q @ self.Wa @ x.transpose(0, 2, 1)) / (self.out_size ** 0.5)
+        scores = (q @ self.Wa @ x.transpose(0, 2, 1)) / (self.in_size ** 0.5)
         attn_weights = self.softmax(scores)
 
         z = attn_weights @ x

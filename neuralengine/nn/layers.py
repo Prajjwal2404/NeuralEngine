@@ -215,8 +215,8 @@ class MultiplicativeAttention(Layer):
         return z
     
 
-class MultiHeadSelfAttention(Layer):
-    """Multi-head self-attention layer."""
+class MultiHeadAttention(Layer):
+    """Multi-head attention layer."""
     def __init__(self, num_heads: int = 1, in_size: int | tuple = None):
         """
         @param num_heads: Number of attention heads.
@@ -238,26 +238,27 @@ class MultiHeadSelfAttention(Layer):
         # Output projection
         self.Wo = randn((self.out_size, self.out_size), xavier=True, requires_grad=True)
 
-    def forward(self, x: Tensor) -> Tensor:
-        batch_size, seq_len, _ = x.shape
+    def forward(self, x: Tensor, y: Tensor = None) -> Tensor:
+        batch_size, seq_len_q, _ = x.shape
+        seq_len_kv = y.shape[1] if y else seq_len_q
 
         q = x @ self.Wq
-        k = x @ self.Wk
-        v = x @ self.Wv
+        k = y @ self.Wk if y else x @ self.Wk
+        v = y @ self.Wv if y else x @ self.Wv
 
         # Result: (batch_size, num_heads, seq_len, head_dim)
-        q = q.reshape(batch_size, seq_len, self.num_heads, self.head_dim).transpose(0, 2, 1, 3)
-        k = k.reshape(batch_size, seq_len, self.num_heads, self.head_dim).transpose(0, 2, 1, 3)
-        v = v.reshape(batch_size, seq_len, self.num_heads, self.head_dim).transpose(0, 2, 1, 3)
+        q = q.reshape(batch_size, seq_len_q, self.num_heads, self.head_dim).transpose(0, 2, 1, 3)
+        k = k.reshape(batch_size, seq_len_kv, self.num_heads, self.head_dim).transpose(0, 2, 1, 3)
+        v = v.reshape(batch_size, seq_len_kv, self.num_heads, self.head_dim).transpose(0, 2, 1, 3)
 
-        # Result: (batch_size, num_heads, seq_len, seq_len)
+        # Result: (batch_size, num_heads, seq_len_q, seq_len_kv)
         scores = (q @ k.transpose(0, 1, 3, 2)) / (self.head_dim ** 0.5)
         attn_weights = self.softmax(scores)
 
-        # Result: (batch_size, num_heads, seq_len, head_dim)
+        # Result: (batch_size, num_heads, seq_len_q, head_dim)
         z = attn_weights @ v
-        # Result: (batch_size, seq_len, num_heads * head_dim)
-        z = z.transpose(0, 2, 1, 3).reshape(batch_size, seq_len, self.out_size)
+        # Result: (batch_size, seq_len_q, num_heads * head_dim)
+        z = z.transpose(0, 2, 1, 3).reshape(batch_size, seq_len_q, self.out_size)
         z = z @ self.Wo # Final output projection
         return z
 

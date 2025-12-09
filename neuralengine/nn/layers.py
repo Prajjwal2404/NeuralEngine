@@ -257,31 +257,31 @@ class MultiHeadSelfAttention(Layer):
 
 class Embedding(Layer):
     """Embedding layer for mapping indices to dense vectors."""
-    def __init__(self, embed_size: int, vocab_size: int = None, n_timesteps: int = None):
+    def __init__(self, embed_size: int, vocab_size: int = None, timesteps: int = None):
         """
         @param embed_size: Size of the embedding vectors.
         @param vocab_size: Number of unique tokens in the vocabulary.
-        @param n_timesteps: Number of timesteps in the input sequence (for positional encoding).
+        @param timesteps: Maximum number of timesteps in the input sequence (for positional encoding).
         """
         super().__init__()
-        self.n_timesteps = n_timesteps
+        self.timesteps = timesteps
         self.out_size = embed_size
         if vocab_size: self.in_size = vocab_size
 
-        if self.n_timesteps:
-            # Positional encoding for n_timesteps
-            self.PE = randn((self.n_timesteps, self.out_size), xavier=True, requires_grad=True)
+        if self.timesteps:
+            # Positional encoding for n timesteps
+            self.PE = randn((self.timesteps, self.out_size), xavier=True, requires_grad=True)
 
     def _initialize_parameters(self) -> None:
-        # Embedding matrix
+        # Token Embedding matrix
         self.TE = randn((*self.in_size, self.out_size), xavier=True, requires_grad=True)
 
     def forward(self, x: Tensor) -> Tensor:
         # z = TE[x]
         z = self.TE[x.data]
-        if self.n_timesteps:
-            # Add positional encoding if n_timesteps is specified
-            z += self.PE[:self.n_timesteps].reshape(1, x.shape[1], -1)
+        if self.timesteps:
+            # Add positional encoding if timesteps is specified
+            z += self.PE[:x.shape[1]].reshape(1, x.shape[1], -1)
         return z
 
 

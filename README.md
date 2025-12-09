@@ -146,11 +146,11 @@ NeuralEngine offers the following core capabilities:
 - `ne.LSTM(...)`: Long Short-Term Memory layer with options for attention, bidirectionality, sequence/state output. You can build deep LSTM networks by stacking multiple LSTM layers. When stacking, ensure that the hidden units for subsequent layers are set correctly:
     - For a standard LSTM, the hidden state shape for the last timestep is `(batch, hidden_units)`.
     - For a bidirectional LSTM, the hidden and cell state shape becomes `(batch, hidden_units * 2)`.
-    - If attention is enabled, the hidden state shape is `(batch, hidden_units + input_size[-1])`.
+    - If attention is enabled, the hidden state shape is `(batch, hidden_units + enc_size)`.
     - If subsequent layers require state initializations from prior layers, set the hidden units accordingly to match the output shape of the previous LSTM (including adjustments for bidirectionality and attention).
-- `ne.MultiplicativeAttention(units)`: Dot-product attention mechanism for sequence models.
+- `ne.MultiplicativeAttention(units, in_size)`: Dot-product attention mechanism for sequence models.
 - `ne.MultiHeadSelfAttention(num_heads=1, in_size=None)`: Multi-head self-attention layer for transformer and sequence models.
-- `ne.Embedding(embed_size, vocab_size, n_timesteps=None)`: Embedding layer for mapping indices to dense vectors, with optional positional encoding.
+- `ne.Embedding(embed_size, vocab_size, timesteps=None)`: Embedding layer for mapping indices to dense vectors, with optional positional encoding.
 - `ne.LayerNorm(norm_shape, eps=1e-7)`: Layer normalization for stabilizing training.
 - `ne.Dropout(prob=0.5)`: Dropout regularization for reducing overfitting.
 - All layers inherit from a common base and support extensibility for custom architectures.

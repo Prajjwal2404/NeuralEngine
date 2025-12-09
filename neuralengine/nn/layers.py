@@ -103,14 +103,15 @@ class Linear(Layer):
 class LSTM(Layer):
     """Long Short-Term Memory layer."""
     def __init__(self, lstm_units: int, in_size: int | tuple = None, n_timesteps: int = None, bias: bool = True, 
-                 enc_size: int = None, return_seq: bool = False, return_state: bool = False, 
-                 bidirectional: bool = False, use_output: int | tuple = -1):
+                 attention: bool = False, enc_size: int = None, return_seq: bool = False, 
+                 return_state: bool = False, bidirectional: bool = False, use_output: int | tuple = -1):
         """
         @param lstm_units: Number of LSTM units (output size).
         @param in_size: Number of input features or shape of input tensor.
         @param n_timesteps: Number of timesteps in the input sequence.
         @param bias: Include bias term.
-        @param enc_size: Size of encoder outputs (Uses MultiplicativeAttention).
+        @param attention: Use multiplicative attention mechanism.
+        @param enc_size: Size of encoder outputs (for Cross-Attention).
         @param return_seq: Return hidden states for all timesteps.
         @param return_state: Return final cell and hidden states.
         @param bidirectional: Use bidirectional LSTM.
@@ -126,13 +127,14 @@ class LSTM(Layer):
         self.return_state = return_state
         self.bidirectional = bidirectional
         self.use_output = (use_output,) if isinstance(use_output, int) else use_output
-        self.attention = MultiplicativeAttention(lstm_units, enc_size) if enc_size else None
+        self.attention = MultiplicativeAttention(lstm_units) if attention else None
         self.sigmoid = Sigmoid()
         self.tanh = Tanh()
 
     def _initialize_parameters(self) -> None:
         # LSTM gate weights and biases
-        concat_size = self.out_size + self.in_size[-1] + (self.enc_size if self.attention else 0)
+        self.ctx_size = self.enc_size if self.enc_size else self.out_size if self.attention else 0
+        concat_size = self.out_size + self.in_size[-1] + self.ctx_size
         self.Wf = randn((concat_size, self.out_size), xavier=True, requires_grad=True)
         self.Wi = randn((concat_size, self.out_size), xavier=True, requires_grad=True)
         self.Wc = randn((concat_size, self.out_size), xavier=True, requires_grad=True)
@@ -144,10 +146,13 @@ class LSTM(Layer):
             self.bc = zeros((1, self.out_size), requires_grad=True)
             self.bo = zeros((1, self.out_size), requires_grad=True)
 
+        if self.attention:
+            self.attention.in_size = self.enc_size if self.enc_size else self.out_size
+
     def forward(self, x: Tensor, c: Tensor = None, h: Tensor = None, enc_seq: Tensor = None):
         # LSTM forward pass
         c = c if c else zeros((x.shape[0], self.out_size))
-        h = h if h else zeros((x.shape[0], self.out_size + (self.enc_size if self.attention else 0)))
+        h = h if h else zeros((x.shape[0], self.out_size + self.ctx_size))
 
         output = self.lstm_loop(x, range(self.n_timesteps or x.shape[-2]), c, h, enc_seq)
         if self.bidirectional:
@@ -163,7 +168,7 @@ class LSTM(Layer):
 
     def lstm_loop(self, x: Tensor, timesteps: range, c: Tensor, h: Tensor, enc_seq: Tensor = None):
 
-        if self.return_seq: seq_output = []
+        if self.return_seq or (self.attention and not enc_seq): seq_output = []
         for t in timesteps:
             h_x = concat(h, x[:, t, :], axis=-1)
             f_t = self.sigmoid(h_x @ self.Wf + (self.bf if self.has_bias else 0))  # Forget gate f_t = σ(Wf.[h, x_t] + bf)
@@ -173,11 +178,11 @@ class LSTM(Layer):
             o_t = self.sigmoid(h_x @ self.Wo + (self.bo if self.has_bias else 0))  # Output gate o_t = σ(Wo.[h, x_t] + bo)
             h = o_t * self.tanh(c)  # Hidden state h_t = o_t * tanh(c_t)
 
-            if self.attention:
-                context = self.attention(h, enc_seq)
-                h = concat(h, context, axis=-1)
+            if self.return_seq or (self.attention and not enc_seq): seq_output.append(h)
 
-            if self.return_seq: seq_output.append(h)
+            if self.attention:
+                context = self.attention(h, enc_seq if enc_seq else stack(*seq_output, axis=1))
+                h = concat(h, context, axis=-1)
 
         output = [c, h] if self.return_state else [h]
         if self.return_seq: output.insert(0, stack(*seq_output, axis=1))
@@ -186,15 +191,17 @@ class LSTM(Layer):
 
 class MultiplicativeAttention(Layer):
     """Multiplicative (dot-product) attention layer."""
-    def __init__(self, units: int, in_size: int):
+    def __init__(self, units: int, in_size: int = None):
         """
         @param units: Number of attention units (output size).
         @param in_size: Number of input features or shape of input tensor.
         """
         super().__init__()
         self.out_size = units
-        self.in_size = in_size
         self.softmax = Softmax(axis=-1)
+        if in_size: self.in_size = in_size
+
+    def _initialize_parameters(self) -> None:
         self.Wa = randn((self.out_size, self.in_size), xavier=True, requires_grad=True)
 
     def forward(self, h: Tensor, x: Tensor) -> Tensor:

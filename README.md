@@ -143,11 +143,11 @@ NeuralEngine offers the following core capabilities:
 ### Layers
 - `ne.Flatten()`: Flattens input tensors to 2D (batch, features).
 - `ne.Linear(out_features, activation=None)`: Fully connected layer with optional activation.
-- `ne.LSTM(...)`: Long Short-Term Memory layer with options for attention, bidirectionality, sequence/state output. You can build deep LSTM networks by stacking multiple LSTM layers. When stacking, ensure that the hidden units for subsequent layers are set correctly:
+- `ne.LSTM(...)`: Long Short-Term Memory layer with options for attention, bidirectionality, sequence/state output. You can build deep LSTM networks by stacking multiple LSTM layers. When building encoder-decoder models, ensure that the hidden units for decoder's first layer is set correctly:
     - For a standard LSTM, the hidden state shape for the last timestep is `(batch, hidden_units)`.
     - For a bidirectional LSTM, the hidden and cell state shape becomes `(batch, hidden_units * 2)`.
     - If attention is enabled, the hidden state shape is `(batch, 2 * hidden_units)` (self-attention), if `enc_size` is provided, the hidden state shape is `(batch, hidden_units + enc_size)` (cross-attention).
-    - If subsequent layers require state initializations from prior layers, set the hidden units accordingly to match the output shape of the previous LSTM (including adjustments for bidirectionality and attention).
+    - If LSTM layers require state initializations from prior layers, set the hidden units accordingly to match the output shape of the previous LSTM (including adjustments for bidirectionality and attention).
 - `ne.MultiplicativeAttention(units, in_size=None)`: Soft attention mechanism for sequence models.
 - `ne.MultiHeadAttention(num_heads=1, in_size=None)`: Multi-head attention layer for transformer and sequence models.
 - `ne.Embedding(embed_size, vocab_size, timesteps=None)`: Embedding layer for mapping indices to dense vectors, with optional positional encoding.

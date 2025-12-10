@@ -135,16 +135,10 @@ class LSTM(Layer):
         # LSTM gate weights and biases
         self.ctx_size = self.enc_size if self.enc_size else self.out_size if self.attention else 0
         concat_size = self.out_size + self.in_size[-1] + self.ctx_size
-        self.Wf = randn((concat_size, self.out_size), xavier=True, requires_grad=True)
-        self.Wi = randn((concat_size, self.out_size), xavier=True, requires_grad=True)
-        self.Wc = randn((concat_size, self.out_size), xavier=True, requires_grad=True)
-        self.Wo = randn((concat_size, self.out_size), xavier=True, requires_grad=True)
-
-        if self.has_bias:
-            self.bf = zeros((1, self.out_size), requires_grad=True)
-            self.bi = zeros((1, self.out_size), requires_grad=True)
-            self.bc = zeros((1, self.out_size), requires_grad=True)
-            self.bo = zeros((1, self.out_size), requires_grad=True)
+        self.Lf = Linear(self.out_size, concat_size, bias=self.has_bias, activation=self.sigmoid)
+        self.Li = Linear(self.out_size, concat_size, bias=self.has_bias, activation=self.sigmoid)
+        self.Lc = Linear(self.out_size, concat_size, bias=self.has_bias, activation=self.tanh)
+        self.Lo = Linear(self.out_size, concat_size, bias=self.has_bias, activation=self.sigmoid)
 
         if self.attention:
             self.attention.in_size = self.enc_size if self.enc_size else self.out_size
@@ -171,11 +165,11 @@ class LSTM(Layer):
         if self.return_seq or (self.attention and not enc_seq): seq_output = []
         for t in timesteps:
             h_x = concat(h, x[:, t, :], axis=-1)
-            f_t = self.sigmoid(h_x @ self.Wf + (self.bf if self.has_bias else 0))  # Forget gate f_t = σ(Wf.[h, x_t] + bf)
-            i_t = self.sigmoid(h_x @ self.Wi + (self.bi if self.has_bias else 0))  # Input gate i_t = σ(Wi.[h, x_t] + bi)
-            c_tilde = self.tanh(h_x @ self.Wc + (self.bc if self.has_bias else 0))  # Cell candidate c~_t = tanh(Wc.[h, x_t] + bc)
+            f_t = self.Lf(h_x)  # Forget gate f_t = σ(Wf.[h, x_t] + bf)
+            i_t = self.Li(h_x)  # Input gate i_t = σ(Wi.[h, x_t] + bi)
+            c_tilde = self.Lc(h_x)  # Cell candidate c~_t = tanh(Wc.[h, x_t] + bc)
+            o_t = self.Lo(h_x)  # Output gate o_t = σ(Wo.[h, x_t] + bo)
             c = f_t * c + i_t * c_tilde  # Cell state c_t = f_t * c_{t-1} + i_t * c~_t
-            o_t = self.sigmoid(h_x @ self.Wo + (self.bo if self.has_bias else 0))  # Output gate o_t = σ(Wo.[h, x_t] + bo)
             h = o_t * self.tanh(c)  # Hidden state h_t = o_t * tanh(c_t)
 
             if self.return_seq or (self.attention and not enc_seq): seq_output.append(h)
@@ -202,12 +196,12 @@ class MultiplicativeAttention(Layer):
         if in_size: self.in_size = in_size
 
     def _initialize_parameters(self) -> None:
-        self.Wa = randn((self.out_size, self.in_size), xavier=True, requires_grad=True)
+        self.Wa = randn((self.out_size, self.in_size[-1]), xavier=True, requires_grad=True)
 
     def forward(self, h: Tensor, x: Tensor) -> Tensor:
         # scores = (q.Wa.xᵗ) / √d_k
         q = h.reshape(h.shape[0], 1, -1)
-        scores = (q @ self.Wa @ x.transpose(0, 2, 1)) / (self.in_size ** 0.5)
+        scores = (q @ self.Wa @ x.transpose(0, 2, 1)) / (self.in_size[-1] ** 0.5)
         attn_weights = self.softmax(scores)
 
         z = attn_weights @ x
@@ -386,6 +380,22 @@ class RELU(Layer):
     def forward(self, x: Tensor) -> Tensor:
         # ReLU: z = max(x, 0) or Leaky/Parametric: z = x if x > 0 else α · x
         z = where(x > 0, x, self.alpha * x)
+        return z
+    
+
+class SiLU(Layer):
+    """SiLU (Swish) activation."""
+    def __init__(self, beta: bool = False):
+        """
+        @param beta: Whether to use a learnable parameter for β in SiLU.
+        """
+        super().__init__()
+        self.sigmoid = Sigmoid()
+        self.beta = Tensor(1.0, requires_grad=beta)
+
+    def forward(self, x: Tensor) -> Tensor:
+        # z = x · σ(βx)
+        z = x * self.sigmoid(self.beta * x)
         return z
 
 

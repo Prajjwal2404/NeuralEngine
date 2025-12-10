@@ -110,14 +110,10 @@ class Model:
                 y_batch = y[j:j + batch_size]
 
                 # Forward pass
-                prevLayer = None
                 for layer in self.layers:
+                    x_batch = layer(x_batch)
                     # For stacked LSTM, pass outputs accordingly
-                    if isinstance(prevLayer, LSTM):
-                        x_batch, *args = [x_batch[i] for i in prevLayer.use_output]
-                        x_batch = layer(x_batch, *args)
-                    else: x_batch = layer(x_batch)
-                    prevLayer = layer
+                    if isinstance(layer, LSTM): x_batch = x_batch[layer.use_output[0]]
                     
                 # Compute loss
                 loss = self.loss(x_batch, y_batch)
@@ -164,14 +160,11 @@ class Model:
             layer.mode = Mode.EVAL
 
         # Forward pass
-        z, prevLayer = x, None
+        z = x
         for layer in self.layers:
+            z = layer(z)
             # For stacked LSTM, pass outputs accordingly
-            if isinstance(prevLayer, LSTM):
-                z, *args = [z[i] for i in prevLayer.use_output]
-                z = layer(z, *args)
-            else: z = layer(z)
-            prevLayer = layer
+            if isinstance(layer, LSTM): z = z[layer.use_output[0]]
 
         self.loss(z, y) # Compute loss
 

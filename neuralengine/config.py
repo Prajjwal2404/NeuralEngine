@@ -25,16 +25,15 @@ def set_device(device: Device) -> None:
     @param device: The device to set, either Device.CPU or Device.CUDA
     """
 
-    if device not in (Device.CPU, Device.CUDA):
-        raise ValueError("device must be either Device.CPU or Device.CUDA")
-    
     global nu, _current_device
-    if device == Device.CUDA:
+    if device == Device.CPU:
+        nu = np
+    elif device == Device.CUDA:
         if not _has_cuda:
             raise RuntimeError("Cupy is not installed or no CUDA device is available.")
         nu = cp
     else:
-        nu = np
+        raise ValueError("device must be either Device.CPU or Device.CUDA")
     _current_device = device
 
 

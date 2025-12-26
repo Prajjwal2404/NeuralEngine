@@ -25,6 +25,10 @@ class Loss:
             return f"{self.__class__.__name__}: {self.loss_val:.4f}"
         else:
             return "No loss computed yet."
+        
+    def compute(self, z, y, *args, **kwargs):
+        """ Computes the loss given predictions and targets. To be implemented by subclasses. """
+        raise NotImplementedError("compute() must be implemented in subclasses")
 
 
 class MSE(Loss):

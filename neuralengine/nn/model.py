@@ -1,5 +1,8 @@
+import os
+import pickle as pkl
 import neuralengine.config as cf
-from ..tensor import Tensor, array
+from itertools import chain
+from ..tensor import Tensor, NoGrad, array
 from .layers import Layer, Mode, Flatten, LSTM
 from .optim import Optimizer
 from .loss import Loss
@@ -46,8 +49,8 @@ class Model:
         @param layers: Variable number of Layer instances to add to the model.
         """
 
-        parameters, prevLayer = [], None
-        for layer in layers:
+        self.parameters, prevLayer = {}, None
+        for i, layer in enumerate(layers):
 
             if not isinstance(layer, Layer):
                 raise ValueError("All layers must be instances of Layer class")
@@ -72,20 +75,81 @@ class Model:
             if isinstance(layer, Flatten):
                 self.input_size = int(cf.nu.prod(array(self.input_size)))
 
-            parameters.extend(layer.parameters()) # Collect parameters from the layer
+            self.parameters[f"layer_{i}"] = list(layer.parameters()) # Collect parameters from the layer
             
         self.layers = layers
-        self.optimizer.parameters = parameters
+        self.optimizer.parameters = list(chain.from_iterable(self.parameters.values()))
 
 
-    def train(self, x, y, epochs: int = 10, batch_size: int = 64, random_seed: int = None) -> None:
+    @classmethod
+    def load_model(cls, filepath: str) -> 'Model':
+        """
+        Loads the model from a file.
+        @param filepath: Path to the file from which the model will be loaded.
+        @return: Loaded Model instance.
+        """
+        filepath = filepath if filepath.endswith('.pkl') else filepath + '.pkl'
+        with open(filepath, 'rb') as file:
+            model = pkl.load(file)
+
+        if not isinstance(model, cls):
+            raise ValueError("Loaded object is not a Model instance")
+
+        device = cf.get_device()
+        for layer in model.layers:
+            layer.to(device)
+        return model
+
+
+    def load_params(self, filepath: str) -> None:
+        """
+        Loads the model parameters from a file.
+        @param filepath: Path to the file from which model parameters will be loaded.
+        """
+        filepath = filepath if filepath.endswith('.pkl') else filepath + '.pkl'
+        with open(filepath, 'rb') as file:
+            params = pkl.load(file)
+
+        device = cf.get_device()
+        for i in range(len(self.layers)):
+            layer_old = self.parameters.get(f"layer_{i}", [])
+            layer_new = params.get(f"layer_{i}", [])
+
+            if len(layer_old) != len(layer_new): 
+                print(f"Skipping layer_{i} parameter load due to mismatch.")
+                continue
+
+            for p_old, p_new in zip(layer_old, layer_new):
+                if p_old.shape != p_new.shape:
+                    print(f"Skipping parameter load due to shape mismatch: {p_old.shape} vs {p_new.shape}")
+                    continue 
+                p_old.data = p_new.to(device).data.copy()
+
+
+    def save(self, filename: str, weights_only: bool = False) -> None:
+        """
+        Saves the model or model parameters to a file.
+        @param filename: Name of the file where model will be saved.
+        @param weights_only: If True, saves only weights; else saves entire model structure.
+        """
+        filename = filename if filename.endswith('.pkl') else filename + '.pkl'
+        filepath = os.path.join(os.getcwd(), filename)
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        with open(filepath, 'wb') as file:
+            if weights_only: pkl.dump(self.parameters, file)
+            else: pkl.dump(self, file)
+
+
+    def train(self, x, y, epochs: int = 10, batch_size: int = 64, seed: int = None, ckpt_interval: int = None):
         """
         Trains the model on data.
         @param x: Input data, shape (N, features)
         @param y: Target data, shape (N, target_features)
         @param epochs: Number of epochs
         @param batch_size: Batch size (None for full batch)
-        @param random_seed: Seed for shuffling
+        @param seed: Seed for random shuffling
+        @param ckpt_interval: Interval (in epochs) to save checkpoints
         """
 
         for layer in self.layers:
@@ -101,7 +165,7 @@ class Model:
         for i in range(epochs):
 
             loss_val, metric_vals = 0, {}
-            cf.nu.random.seed(random_seed)
+            cf.nu.random.seed(seed)
             shuffle_indices = cf.nu.random.permutation(x.shape[0])
             x, y = x[shuffle_indices], y[shuffle_indices] # Shuffle data
 
@@ -137,15 +201,20 @@ class Model:
                 self.optimizer.reset_grad() # Reset gradients
 
             loss_val /= (x.shape[0] / batch_size) # Average loss over batches
-            output_str = f"Epoch {i + 1}/{epochs}, Loss: {loss_val:.4f}, "
+            output_strs = [f"Epoch {i + 1}/{epochs}", f"Loss: {loss_val:.4f}"]
 
             for key, value in metric_vals.items():
                 value /= (x.shape[0] / batch_size) # Average metric over batches
                 if isinstance(value, (cf.nu.ndarray)) and value.ndim == 1:
                     value = value.mean(keepdims=False)
-                output_str += f"{key}: {value:.4f}, "
+                output_strs.append(f"{key}: {value:.4f}")
 
-            print(output_str[:-2])
+            # Save checkpoint
+            if ckpt_interval and (i + 1) % ckpt_interval == 0:
+                self.save(f"checkpoints/model_epoch_{i + 1}.pkl", weights_only=True)
+                output_strs.append("Checkpoint saved")
+
+            print(*output_strs, sep=", ")
 
 
     def eval(self, x, y) -> Tensor:
@@ -160,13 +229,14 @@ class Model:
             layer.mode = Mode.EVAL
 
         # Forward pass
-        z = x
-        for layer in self.layers:
-            z = layer(z)
-            # For stacked LSTM, pass outputs accordingly
-            if isinstance(layer, LSTM): z = z[layer.use_output[0]]
+        with NoGrad():
+            z = x
+            for layer in self.layers:
+                z = layer(z)
+                # For stacked LSTM, pass outputs accordingly
+                if isinstance(layer, LSTM): z = z[layer.use_output[0]]
 
-        self.loss(z, y) # Compute loss
+            self.loss(z, y) # Compute loss
 
         # Compute metrics
         cm = False

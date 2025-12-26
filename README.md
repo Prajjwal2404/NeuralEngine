@@ -87,7 +87,7 @@ model = ne.Model(
 )
 model(
     ne.Flatten(),
-    ne.Linear(64, activation=ne.RELU()),
+    ne.Linear(64, activation=ne.ReLU()),
     ne.Linear(10, activation=ne.Softmax()),
 )
 
@@ -123,6 +123,7 @@ NeuralEngine offers the following core capabilities:
 
 ### Device Management
 - `ne.set_device(device)`: Switch between CPU and GPU (CUDA) for computation.
+- `Tensor.to(device)`, `Layer.to(device)`: Move tensors and layers to specified device.
 - Device enum: `ne.Device.CPU`, `ne.Device.CUDA`.
 
 ### Tensors & Autograd
@@ -151,14 +152,15 @@ NeuralEngine offers the following core capabilities:
 - `ne.MultiplicativeAttention(units, in_size=None)`: Soft attention mechanism for sequence models.
 - `ne.MultiHeadAttention(num_heads=1, in_size=None)`: Multi-head attention layer for transformer and sequence models.
 - `ne.Embedding(embed_size, vocab_size, timesteps=None)`: Embedding layer for mapping indices to dense vectors, with optional positional encoding.
-- `ne.LayerNorm(norm_shape, eps=1e-7)`: Layer normalization for stabilizing training.
+- `ne.LayerNorm(num_feat, eps=1e-7)`: Layer normalization for stabilizing training.
 - `ne.Dropout(prob=0.5)`: Dropout regularization for reducing overfitting.
 - All layers inherit from a common base and support extensibility for custom architectures.
 
 ### Activations
 - `ne.Sigmoid()`: Sigmoid activation function.
 - `ne.Tanh()`: Tanh activation function.
-- `ne.RELU(alpha=0, parametric=False)`: ReLU, Leaky ReLU, or Parametric ReLU activation.
+- `ne.ReLU(alpha=0, parametric=False)`: ReLU, Leaky ReLU, or Parametric ReLU activation.
+- `ne.SiLU(beta=False)`: SiLU (Swish) activation function.
 - `ne.Softmax(axis=-1)`: Softmax activation for classification tasks.
 - All activations inherit from a common base and support extensibility for custom architectures.
 
@@ -185,9 +187,12 @@ NeuralEngine offers the following core capabilities:
 ### Model API
 - `ne.Model(input_size, optimizer, loss, metrics)`: Create a model specifying input size, optimizer, loss function, and metrics.
 - Add layers by calling the model instance: `model(layer1, layer2, ...)` or using `model.build(layer1, layer2, ...)`.
-- `model.train(x, y, epochs=10, batch_size=64, random_seed=None)`: Train the model on data, with support for batching, shuffling, and metric/loss reporting per epoch.
-- `model.eval(x, y)`: Evaluate the model on data, prints loss and metrics, and returns output tensor. Also prints confusion matrix if enabled in metrics.
+- `model.train(x, y, epochs=10, batch_size=64, seed=None, ckpt_interval=None)`: Train the model on data, with support for batching, shuffling, and metric/loss reporting and checkpointing per epoch.
+- `model.eval(x, y)`: Evaluate the model on data, disables gradient tracking using `with ne.NoGrad():`, prints loss and metrics, and returns output tensor. Also prints confusion matrix if enabled in metrics.
 - Layers are set to training or evaluation mode automatically during `train` and `eval`.
+- `model.save(filename, weights_only=False)`: Save the model architecture or model parameters to a file.
+- `model.load_params(filepath)`: Load model parameters from a saved file.
+- `ne.Model.load_model(filepath)`: Load a model from a saved file.
 
 ### Utilities
 - Tensor creation: `tensor(data, requires_grad=False)`, `zeros(shape)`, `ones(shape)`, `rand(shape)`, `randn(shape, xavier=False)`, `randint(low, high, shape)` and their `_like` variants for matching shapes.

@@ -1,4 +1,5 @@
 from enum import Enum
+from ..config import Device
 from ..tensor import Tensor
 from ..utils import *
 
@@ -56,6 +57,10 @@ class Layer:
         """Initializes layer parameters. To be implemented by subclasses."""
         pass
 
+    def forward(self, x, *args, **kwargs) -> Tensor:
+        """Performs the forward pass of the layer. To be implemented by subclasses."""
+        raise NotImplementedError("forward() must be implemented in subclasses")
+
     def parameters(self):
         """Yields all trainable parameters for the layer."""
         for _, attr in self.__dict__.items():
@@ -64,6 +69,14 @@ class Layer:
             elif isinstance(attr, Tensor):
                 if attr.requires_grad:
                     yield attr
+
+    def to(self, device: Device) -> None:
+        """Moves all parameters to the specified device (CPU or CUDA).
+        @param device: The device to move to, either CPU or CUDA
+        """
+        for _, attr in self.__dict__.items():
+            if isinstance(attr, (Layer, Tensor)):
+                attr.to(device)
 
 
 class Linear(Layer):
@@ -289,22 +302,22 @@ class Embedding(Layer):
 
 class LayerNorm(Layer):
     """Layer normalization."""
-    def __init__(self, norm_shape: tuple = None, eps: float = 1e-7):
+    def __init__(self, num_feat: tuple = None, eps: float = 1e-7):
         """
-        @param norm_shape: Shape of the normalization parameters (gamma and beta).
+        @param num_feat: Number of features for normalization parameters (gamma and beta).
         @param eps: Small value for numerical stability.
         """
         super().__init__()
         self.eps = eps
-        if norm_shape:
-            self.gamma = ones(norm_shape, requires_grad=True)
-            self.beta = zeros(norm_shape, requires_grad=True)
+        if num_feat:
+            self.gamma = ones((1, *num_feat), requires_grad=True)
+            self.beta = zeros((1, *num_feat), requires_grad=True)
 
     def forward(self, x: Tensor) -> Tensor:
         # z = (x - μ) / (σ + ε)
         mean = x.mean(axis=-1, keepdims=True)
-        std = sqrt(x.var(axis=-1, keepdims=True))
-        z = (x - mean) / (std + self.eps)
+        var = x.var(axis=-1, keepdims=True)
+        z = (x - mean) / sqrt(var + self.eps)
         if self.gamma and self.beta:
             # z = γ · z + β
             z = self.gamma * z + self.beta
@@ -367,7 +380,7 @@ class Tanh(Layer):
         return z
 
 
-class RELU(Layer):
+class ReLU(Layer):
     """ReLU activation."""
     def __init__(self, alpha: float = 0, parametric: bool = False):
         """

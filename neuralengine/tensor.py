@@ -2,20 +2,23 @@ import neuralengine.config as cf
 from itertools import accumulate
 
 
+grad_enabled: bool = True
+
 class Tensor:
     """Core Tensor class for autograd and computation."""
-    def __init__(self, data, requires_grad: bool=False, dtype=cf.nu.float32, _operation=lambda: None):
+    def __init__(self, data, requires_grad: bool=False, dtype=cf.nu.float32, _operation=None):
         """
         @param data: Input data for the tensor.
         @param requires_grad: Whether to track gradients for this tensor.
         @param dtype: Data type of the tensor.
         """
+        global grad_enabled
         self.data = array(data, dtype=dtype)
-        self.requires_grad = requires_grad
+        self.requires_grad = requires_grad if grad_enabled else False
         self.shape = self.data.shape
         self.dtype = dtype.__name__
         self._operation = _operation
-        if requires_grad:
+        if self.requires_grad:
             self.grad = cf.nu.zeros_like(self.data)
             self._children = []
 
@@ -195,7 +198,7 @@ class Tensor:
         """Compute gradients for the entire computation graph."""
         if self.requires_grad:
             self.grad = cf.nu.ones_like(self.data)
-            self._operation()
+            if self._operation: self._operation()
 
     def _backward(self, child):
         """internal method to handle backward pass."""
@@ -204,7 +207,27 @@ class Tensor:
                 del self._children[i]
                 break
         if self.requires_grad and not self._children:
-            self._operation()
+            if self._operation: self._operation()
+
+    def to(self, device: cf.Device):
+        """Move the tensor to the specified device.
+        @param device: The device to move to, either CPU or CUDA
+        """
+        if device == cf.Device.CPU:
+            if not cf._has_cuda or isinstance(self.data, cf.np.ndarray): return self
+            transfer_fn = cf.cp.asnumpy
+        elif device == cf.Device.CUDA:
+            if not cf._has_cuda:
+                raise RuntimeError("Cupy is not installed or no CUDA device is available.")
+            if isinstance(self.data, cf.cp.ndarray): return self
+            transfer_fn = cf.cp.asarray
+        else:
+            raise ValueError("device must be either Device.CPU or Device.CUDA")
+
+        for attr in ['data', 'grad', 'm', 'v', 'velocity']:
+            if hasattr(self, attr):
+                setattr(self, attr, transfer_fn(getattr(self, attr)))   
+        return self
 
 
 
@@ -215,7 +238,7 @@ class Add:
 
     def __call__(self):
         requires_grad = self.a.requires_grad or self.b.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         self.result = Tensor(self.a.data + self.b.data, requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -239,7 +262,7 @@ class Multiply:
 
     def __call__(self):
         requires_grad = self.a.requires_grad or self.b.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         self.result = Tensor(self.a.data * self.b.data, requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -263,7 +286,7 @@ class Divide:
 
     def __call__(self):
         requires_grad = self.a.requires_grad or self.b.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         self.result = Tensor(self.a.data / self.b.data, requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -287,7 +310,7 @@ class Power:
 
     def __call__(self):
         requires_grad = self.base.requires_grad or self.exponent.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         self.result = Tensor(self.base.data ** self.exponent.data, requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -311,7 +334,7 @@ class MatrixMul:
 
     def __call__(self):
         requires_grad = self.a.requires_grad or self.b.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         self.result = Tensor(self.a.data @ self.b.data, requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -334,7 +357,7 @@ class Logarithm:
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         self.result = Tensor(cf.nu.log(self.tensor.data), requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -353,7 +376,7 @@ class SquareRoot:
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         self.result = Tensor(cf.nu.sqrt(self.tensor.data), requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -372,7 +395,7 @@ class Exponential:
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         self.result = Tensor(cf.nu.exp(self.tensor.data), requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -391,7 +414,7 @@ class Absolute:
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         self.result = Tensor(cf.nu.abs(self.tensor.data), requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -412,7 +435,7 @@ class Summation:
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         data = cf.nu.sum(self.tensor.data, axis=self.axis, keepdims=self.keepdims)
 
@@ -438,7 +461,7 @@ class Maximum:
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         data = cf.nu.max(self.tensor.data, axis=self.axis, keepdims=self.keepdims)
 
@@ -469,7 +492,7 @@ class Minimum:
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         data = cf.nu.min(self.tensor.data, axis=self.axis, keepdims=self.keepdims)
 
@@ -500,7 +523,7 @@ class Mean:
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         data = cf.nu.mean(self.tensor.data, axis=self.axis, keepdims=self.keepdims)
 
@@ -526,7 +549,7 @@ class Variance:
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         data = cf.nu.var(self.tensor.data, axis=self.axis, keepdims=self.keepdims)
 
@@ -550,7 +573,7 @@ class Transpose:
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         data = cf.nu.transpose(self.tensor.data, axes=self.axes)
 
@@ -573,7 +596,7 @@ class Reshape:
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         data = cf.nu.reshape(self.tensor.data, self.shape)
 
@@ -595,7 +618,7 @@ class Concatenate:
 
     def __call__(self):
         requires_grad = any(t.requires_grad for t in self.tensors)
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         data = cf.nu.concatenate([t.data for t in self.tensors], axis=self.axis)
 
@@ -620,7 +643,7 @@ class Stack:
 
     def __call__(self):
         requires_grad = any(t.requires_grad for t in self.tensors)
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         data = cf.nu.stack([t.data for t in self.tensors], axis=self.axis)
 
@@ -645,7 +668,7 @@ class MaskedFill:
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad or self.value.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         data = cf.nu.where(self.condition, self.tensor.data, self.value.data)
 
@@ -672,7 +695,7 @@ class Slice:
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         self.result = Tensor(self.tensor.data[self.index], requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -694,7 +717,7 @@ class SetSlice:
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad or self.value.requires_grad
-        operation = self._deriv if requires_grad else lambda: None
+        operation = self._deriv if requires_grad else None
 
         data = self.tensor.data.copy()
         data[self.index] = self.value.data
@@ -714,6 +737,18 @@ class SetSlice:
             grad = self.result.grad[self.index]
             self.value.grad += grad
             self.value._backward(self.result)
+
+
+class NoGrad:
+    """Context manager to disable gradient tracking."""
+    def __enter__(self):
+        global grad_enabled
+        self.prev = grad_enabled
+        grad_enabled = False
+
+    def __exit__(self, *_):
+        global grad_enabled
+        grad_enabled = self.prev
 
 
 

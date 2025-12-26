@@ -24,6 +24,10 @@ class Optimizer:
         """Initializes optimizer-specific states. To be implemented by subclasses."""
         pass
 
+    def step(self) -> None:
+        """Performs a single optimization step. To be implemented by subclasses."""
+        raise NotImplementedError("step() must be implemented in subclasses")
+
     def reset_grad(self) -> None:
         """Resets the gradients of all parameters to zero."""
         for param in self._params:

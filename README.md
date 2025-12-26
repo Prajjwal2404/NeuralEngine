@@ -154,6 +154,7 @@ NeuralEngine offers the following core capabilities:
 - `ne.Embedding(embed_size, vocab_size, timesteps=None)`: Embedding layer for mapping indices to dense vectors, with optional positional encoding.
 - `ne.LayerNorm(num_feat, eps=1e-7)`: Layer normalization for stabilizing training.
 - `ne.Dropout(prob=0.5)`: Dropout regularization for reducing overfitting.
+- `ne.Layer.freezed = True/False`: Freeze or unfreeze layer parameters during training.
 - All layers inherit from a common base and support extensibility for custom architectures.
 
 ### Activations

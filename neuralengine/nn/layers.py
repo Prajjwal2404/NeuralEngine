@@ -14,6 +14,7 @@ class Layer:
     def __init__(self):
         self._mode: Mode = Mode.TRAIN
         self._in_size: tuple | None = None
+        self._freezed: bool = False
 
     def __call__(self, x, *args, **kwargs) -> Tensor:
         """
@@ -60,6 +61,20 @@ class Layer:
     def forward(self, x, *args, **kwargs) -> Tensor:
         """Performs the forward pass of the layer. To be implemented by subclasses."""
         raise NotImplementedError("forward() must be implemented in subclasses")
+
+    @property
+    def freezed(self) -> bool:
+        """Whether the layer's parameters are frozen (not trainable)."""
+        return self._freezed
+    
+    @freezed.setter
+    def freezed(self, freeze: bool) -> None:
+        self._freezed = freeze
+        for _, attr in self.__dict__.items():
+            if isinstance(attr, Layer):
+                attr.freezed = freeze
+            elif isinstance(attr, Tensor):
+                attr.requires_grad = not freeze
 
     def parameters(self):
         """Yields all trainable parameters for the layer."""
@@ -156,7 +171,7 @@ class LSTM(Layer):
         if self.attention:
             self.attention.in_size = self.enc_size if self.enc_size else self.out_size
 
-    def forward(self, x: Tensor, c: Tensor = None, h: Tensor = None, enc_seq: Tensor = None):
+    def forward(self, x: Tensor, c: Tensor = None, h: Tensor = None, enc_seq: Tensor = None) -> list[Tensor]:
         # LSTM forward pass
         c = c if c else zeros((x.shape[0], self.out_size))
         h = h if h else zeros((x.shape[0], self.out_size + self.ctx_size))
@@ -310,8 +325,8 @@ class LayerNorm(Layer):
         super().__init__()
         self.eps = eps
         if num_feat:
-            self.gamma = ones((1, *num_feat), requires_grad=True)
-            self.beta = zeros((1, *num_feat), requires_grad=True)
+            self.gamma = ones(num_feat, requires_grad=True)
+            self.beta = zeros(num_feat, requires_grad=True)
 
     def forward(self, x: Tensor) -> Tensor:
         # z = (x - μ) / (σ + ε)

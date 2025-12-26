@@ -2,7 +2,7 @@ import neuralengine.config as cf
 from itertools import accumulate
 
 
-grad_enabled: bool = True
+autograd_enabled: bool = True
 
 class Tensor:
     """Core Tensor class for autograd and computation."""
@@ -12,11 +12,11 @@ class Tensor:
         @param requires_grad: Whether to track gradients for this tensor.
         @param dtype: Data type of the tensor.
         """
-        global grad_enabled
+        global autograd_enabled
         self.data = array(data, dtype=dtype)
-        self.requires_grad = requires_grad if grad_enabled else False
+        self.requires_grad = requires_grad if autograd_enabled else False
         self.shape = self.data.shape
-        self.dtype = dtype.__name__
+        self.dtype = dtype
         self._operation = _operation
         if self.requires_grad:
             self.grad = cf.nu.zeros_like(self.data)
@@ -33,7 +33,7 @@ class Tensor:
 
     def __repr__(self) -> str:
         """String representation of the tensor."""
-        return f"Tensor(data={self.data}, dtype={self.dtype}, requires_grad={self.requires_grad})"
+        return f"Tensor(data={self.data}, dtype={self.dtype.__name__}, requires_grad={self.requires_grad})"
 
     def __add__(self, other):
         """New = A + B"""
@@ -742,13 +742,13 @@ class SetSlice:
 class NoGrad:
     """Context manager to disable gradient tracking."""
     def __enter__(self):
-        global grad_enabled
-        self.prev = grad_enabled
-        grad_enabled = False
+        global autograd_enabled
+        self.prev = autograd_enabled
+        autograd_enabled = False
 
     def __exit__(self, *_):
-        global grad_enabled
-        grad_enabled = self.prev
+        global autograd_enabled
+        autograd_enabled = self.prev
 
 
 

@@ -202,7 +202,7 @@ NeuralEngine offers the following core capabilities:
 
 ### DataLoader
 - `ne.DataLoader(x, y, dtype=None, batch_size=32, shuffle=True, seed=None)`: Create a data loader for batching and shuffling datasets during training and evaluation.
-- Supports lists, tuples, numpy arrays, pandas dataframes, and tensors as input data.
+- Supports lists, tuples, numpy arrays, pandas dataframes and tensors as input data.
 - Extensible for custom data loading strategies.
 
 ### Utilities
@@ -215,9 +215,9 @@ NeuralEngine is designed for easy extension and customization:
 - **Custom Layers**: Create new layers by inheriting from the `Layer` base class and implementing the `forward(self, x)` method. You can add parameters, initialization logic, and custom computations as needed. All built-in layers follow this pattern, making it simple to add your own.
 - **Custom Losses**: Define new loss functions by inheriting from the `Loss` base class and implementing the `compute(self, z, y)` method. This allows you to integrate any custom loss logic with autograd support.
 - **Custom Optimizers**: Implement new optimization algorithms by inheriting from the `Optimizer` base class and providing your own `step(self)` method. You can manage optimizer state and parameter updates as required.
-- **Custom Metrics**: Add new metrics by inheriting from the `Metric` base class and implementing the `compute(self, z, y)` method. This allows you to track any performance measure during training and evaluation with metric accumulation.
+- **Custom Metrics**: Add new metrics by inheriting from the `Metric` base class and implementing the `compute(self, z, y)` method. This allows you to track any performance measure with metric accumulation.
 - **Custom DataLoaders**: Extend the `DataLoader` class to create specialized data loading strategies. Override the `__getitem__` method to define how batches are constructed.
-- All core components are modular and can be replaced or extended for research, experimentation, or production use.
+- All core components are modular and can be replaced or extended for research or production use.
 
 ## Contribution Guide
 

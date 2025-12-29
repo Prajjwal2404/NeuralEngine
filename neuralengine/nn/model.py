@@ -2,7 +2,7 @@ import os
 import pickle as pkl
 import neuralengine.config as cf
 from itertools import chain
-from ..tensor import Tensor, NoGrad, array
+from ..tensor import Tensor, NoGrad
 from ..utils import concat
 from .layers import Layer, Mode, Flatten, LSTM
 from .optim import Optimizer
@@ -15,7 +15,6 @@ class Model:
     Allows for defining the model architecture, optimizer, loss function, and metrics.
     The model can be trained and evaluated.
     """
-
     def __init__(self, input_size: tuple | int, optimizer: Optimizer = None, loss: Loss = None, metrics=()):
         """
         @param input_size: Tuple or int, shape of input data samples (int if 1D).
@@ -23,7 +22,6 @@ class Model:
         @param loss: Loss instance.
         @param metrics: List/tuple of Metric or Loss instances.
         """
-
         self.input_size = input_size
 
         if not isinstance(optimizer, Optimizer):
@@ -74,12 +72,12 @@ class Model:
                 layer.in_size = self.input_size
             self.input_size = layer.out_size if hasattr(layer, 'out_size') else self.input_size
             if isinstance(layer, Flatten):
-                self.input_size = int(cf.nu.prod(array(self.input_size)))
+                self.input_size = int(cf.np.prod(self.input_size))
 
             self.parameters[f"layer_{i}"] = list(layer.parameters()) # Collect parameters from the layer
             
         self.layers = layers
-        self.optimizer.parameters = list(chain.from_iterable(self.parameters.values()))
+        self.optimizer.parameters = list(chain(*self.parameters.values()))
 
 
     @classmethod
@@ -142,7 +140,7 @@ class Model:
             else: pkl.dump(self, file)
 
 
-    def train(self, dataloader: DataLoader, epochs: int = 10, ckpt_interval: int = None):
+    def train(self, dataloader: DataLoader, epochs: int = 10, ckpt_interval: int = None) -> None:
         """
         Trains the model on data.
         @param dataloader: DataLoader instance providing training data.
@@ -167,7 +165,6 @@ class Model:
                     if isinstance(layer, LSTM): x = x[layer.use_output[0]]
                     
                 loss = self.loss(x, y) # Compute loss
-
                 loss.backward() # Backward pass
 
                 # Compute metrics
@@ -178,13 +175,15 @@ class Model:
                 self.optimizer.step()
                 self.optimizer.reset_grad() # Reset gradients
 
-            output_strs = [f"Epoch {i + 1}/{epochs}", f"Loss: {self.loss}", *self.metrics]
+                print(dataloader, f'Epoch {i + 1}/{epochs}', sep=', ', end='', flush=True) # Show progress bar
+
+            output_strs = [f": (Loss) {self.loss}", *self.metrics]
 
             # Save checkpoint
             if ckpt_interval and (i + 1) % ckpt_interval == 0:
                 self.save(f"checkpoints/model_epoch_{i + 1}.pkl", weights_only=True)
                 output_strs.append("Checkpoint saved")
-            print(*output_strs, sep=", ")
+            print(*output_strs, sep=', ', flush=True)
 
             # Reset loss and metrics for next epoch
             self.loss.reset()
@@ -221,5 +220,7 @@ class Model:
             for metric in self.metrics:
                 metric(x, y)
 
-        print(f"Evaluation: (Loss) {self.loss}", *self.metrics, sep=", ")
+            print(dataloader, 'Evaluation', sep=', ', end='', flush=True) # Show progress bar
+
+        print(f": (Loss) {self.loss}", *self.metrics, sep=', ', flush=True)
         return concat(*z, axis=0)

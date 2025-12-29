@@ -201,8 +201,9 @@ NeuralEngine offers the following core capabilities:
 - `ne.Model.load_model(filepath)`: Load a model from a saved file.
 
 ### DataLoader
-- `ne.DataLoader(x, y, dtype=None, batch_size=32, shuffle=True, seed=None)`: Create a data loader for batching and shuffling datasets during training and evaluation.
+- `ne.DataLoader(x, y, dtype=None, batch_size=32, shuffle=True, seed=None, bar=30)`: Create a data loader for batching and shuffling datasets during training and evaluation.
 - Supports lists, tuples, numpy arrays, pandas dataframes and tensors as input data.
+- Provides batching, shuffling, and progress bar display during iteration.
 - Extensible for custom data loading strategies.
 
 ### Utilities

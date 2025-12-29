@@ -46,7 +46,7 @@ class Metric:
         self.metric_val = {}
         self.count = 0
         
-    def compute(self, z, y, *args, **kwargs) -> dict[str, float | array]:
+    def compute(self, z, y, *args, **kwargs) -> dict[str, float | cf.np.ndarray]:
         """ Computes the metric given predictions and targets. To be implemented by subclasses. """
         raise NotImplementedError("compute() must be implemented in subclasses")
 

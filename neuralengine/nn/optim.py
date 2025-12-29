@@ -43,7 +43,6 @@ class SGD(Optimizer):
         @param momentum: Momentum factor
         @param nesterov: Use Nesterov momentum
         """
-
         super().__init__()
         self.lr = lr
         self.reg = reg
@@ -83,7 +82,6 @@ class Adam(Optimizer):
         @param eps: Numerical stability
         @param reg: L2 regularization
         """
-
         super().__init__()
         self.lr = lr
         betas = betas if isinstance(betas, (list, tuple)) else (betas,)
@@ -105,7 +103,6 @@ class Adam(Optimizer):
         Updates the parameters using Adam optimization algorithm.
         RMSProp algorithm is used if only one beta is provided.
         """
-
         self.t += 1
         for param in self._params:
             # grad = ∂L/∂w + λw (L2 regularization)

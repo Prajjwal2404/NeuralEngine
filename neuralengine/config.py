@@ -24,7 +24,6 @@ def set_device(device: Device) -> None:
     Sets the current device for tensor operations.
     @param device: The device to set, either Device.CPU or Device.CUDA
     """
-
     global nu, _current_device
     if device == Device.CPU:
         nu = np

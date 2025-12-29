@@ -5,7 +5,8 @@ from ..utils import *
 class Loss:
     """Base class for all loss functions."""
     def __init__(self):
-        self.loss_val = None
+        self.loss_val = 0
+        self.count = 0
 
     def __call__(self, z, y, *args, **kwargs):
         """ Calls the loss compute method with the provided predictions and targets.
@@ -16,17 +17,23 @@ class Loss:
         y = y if isinstance(y, Tensor) else Tensor(y)
         loss = self.compute(z, y, *args, **kwargs)
 
-        self.loss_val = loss.data.mean() if isinstance(loss, Tensor) else loss
+        self.loss_val += loss.data.mean() if isinstance(loss, Tensor) else loss
+        self.count += 1
         return loss
 
     def __repr__(self) -> str:
         """ Returns a string representation of the loss with its value if computed. """
-        if self.loss_val is not None:
-            return f"{self.__class__.__name__}: {self.loss_val:.4f}"
+        if self.count > 0:
+            return f"{self.__class__.__name__}: {(self.loss_val / self.count):.4f}"
         else:
             return "No loss computed yet."
         
-    def compute(self, z, y, *args, **kwargs):
+    def reset(self) -> None:
+        """ Resets the accumulated loss value and count. """
+        self.loss_val = 0
+        self.count = 0
+        
+    def compute(self, z, y, *args, **kwargs) -> Tensor:
         """ Computes the loss given predictions and targets. To be implemented by subclasses. """
         raise NotImplementedError("compute() must be implemented in subclasses")
 
@@ -64,9 +71,8 @@ class Huber(Loss):
 
     def compute(self, z, y):
         # Huber: if |z - y| <= δ: 1/2 (z - y)² else: δ(|z - y| - 1/2 δ)
-        diff = z - y
-        abs_diff = abs(diff)
-        loss = where(abs_diff <= self.delta, 0.5 * diff ** 2, self.delta * (abs_diff - 0.5 * self.delta))
+        diff = abs(z - y)
+        loss = where(diff <= self.delta, 0.5 * diff ** 2, self.delta * (diff - 0.5 * self.delta))
         return mean(loss, axis=-1, keepdims=False)
     
 

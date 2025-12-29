@@ -75,8 +75,11 @@ ne.set_device(ne.Device.CUDA)
 # Load your dataset (example: MNIST)
 x_train, y_train, x_test, y_test = load_mnist_data()
 
-y_train = ne.one_hot(y_train)
+y_train = ne.one_hot(y_train) # Preprocess if needed
 y_test = ne.one_hot(y_test)
+
+train_data = ne.DataLoader(x_train, y_train, batch_size=10000)
+test_data = ne.DataLoader(x_test, y_test, batch_size=10000, shuffle=False)
 
 # Build your model
 model = ne.Model(
@@ -92,8 +95,8 @@ model(
 )
 
 # Train and evaluate
-model.train(x_train, y_train, epochs=30, batch_size=10000)
-result = model.eval(x_test, y_test)
+model.train(train_data, epochs=30)
+result = model.eval(test_data)
 ```
 
 ## Project Structure
@@ -105,6 +108,7 @@ neuralengine/
     utils.py
     nn/
         __init__.py
+        dataload.py
         layers.py
         loss.py
         metrics.py
@@ -172,7 +176,7 @@ NeuralEngine offers the following core capabilities:
 - `ne.Huber(delta=1.0)`: Huber loss, robust to outliers.
 - `ne.GaussianNLL(eps=1e-7)`: Gaussian Negative Log Likelihood loss for probabilistic regression.
 - `ne.KLDivergence(eps=1e-7)`: Kullback-Leibler Divergence loss for measuring distribution differences.
-- All loss functions inherit from a common base and support autograd.
+- All loss functions inherit from a common base, support autograd and loss accumulation.
 
 ### Optimizers
 - `ne.Adam(lr=1e-3, betas=(0.9, 0.99), eps=1e-7, reg=0)`: Adam optimizer (switches to RMSProp if only one beta is provided).
@@ -180,20 +184,26 @@ NeuralEngine offers the following core capabilities:
 - All optimizers support L2 regularization and gradient reset.
 
 ### Metrics
-- `ne.ClassificationMetrics(num_classes=None, acc=True, prec=False, rec=False, f1=False, cm=False)`: Computes accuracy, precision, recall, F1 score, and confusion matrix for classification tasks.
+- `ne.ClassificationMetrics(num_classes=None, acc=True, prec=False, rec=False, f1=False)`: Computes accuracy, precision, recall and F1 score for classification tasks.
 - `ne.RMSE()`: Root Mean Squared Error for regression.
 - `ne.R2()`: R2 Score for regression.
-- All metrics return results as dictionaries and support batch evaluation.
+- `ne.Perplexity()`: Perplexity metric for generative models.
+- All metrics store results as dictionaries, support batch evaluation and metric accumulation.
 
 ### Model API
 - `ne.Model(input_size, optimizer, loss, metrics)`: Create a model specifying input size, optimizer, loss function, and metrics.
 - Add layers by calling the model instance: `model(layer1, layer2, ...)` or using `model.build(layer1, layer2, ...)`.
-- `model.train(x, y, epochs=10, batch_size=64, seed=None, ckpt_interval=None)`: Train the model on data, with support for batching, shuffling, and metric/loss reporting and checkpointing per epoch.
-- `model.eval(x, y)`: Evaluate the model on data, disables gradient tracking using `with ne.NoGrad():`, prints loss and metrics, and returns output tensor. Also prints confusion matrix if enabled in metrics.
+- `model.train(dataloader, epochs=10, ckpt_interval=None)`: Train the model on dataset, with support for  metric/loss reporting and checkpointing per epoch.
+- `model.eval(dataloader)`: Evaluate the model on dataset, disables gradient tracking using `with ne.NoGrad():`, prints loss and metrics, and returns output tensor.
 - Layers are set to training or evaluation mode automatically during `train` and `eval`.
 - `model.save(filename, weights_only=False)`: Save the model architecture or model parameters to a file.
 - `model.load_params(filepath)`: Load model parameters from a saved file.
 - `ne.Model.load_model(filepath)`: Load a model from a saved file.
+
+### DataLoader
+- `ne.DataLoader(x, y, dtype=None, batch_size=32, shuffle=True, seed=None)`: Create a data loader for batching and shuffling datasets during training and evaluation.
+- Supports lists, tuples, numpy arrays, pandas dataframes, and tensors as input data.
+- Extensible for custom data loading strategies.
 
 ### Utilities
 - Tensor creation: `tensor(data, requires_grad=False)`, `zeros(shape)`, `ones(shape)`, `rand(shape)`, `randn(shape, xavier=False)`, `randint(low, high, shape)` and their `_like` variants for matching shapes.
@@ -205,7 +215,8 @@ NeuralEngine is designed for easy extension and customization:
 - **Custom Layers**: Create new layers by inheriting from the `Layer` base class and implementing the `forward(self, x)` method. You can add parameters, initialization logic, and custom computations as needed. All built-in layers follow this pattern, making it simple to add your own.
 - **Custom Losses**: Define new loss functions by inheriting from the `Loss` base class and implementing the `compute(self, z, y)` method. This allows you to integrate any custom loss logic with autograd support.
 - **Custom Optimizers**: Implement new optimization algorithms by inheriting from the `Optimizer` base class and providing your own `step(self)` method. You can manage optimizer state and parameter updates as required.
-- **Custom Metrics**: Add new metrics by inheriting from the `Metric` base class and implementing the `compute(self, z, y)` method. Alternatively, you can pass a function of the form `func(x, y) -> dict[str, float | np.ndarray]` directly to the model's metrics argument for flexible evaluation.
+- **Custom Metrics**: Add new metrics by inheriting from the `Metric` base class and implementing the `compute(self, z, y)` method. This allows you to track any performance measure during training and evaluation with metric accumulation.
+- **Custom DataLoaders**: Extend the `DataLoader` class to create specialized data loading strategies. Override the `__getitem__` method to define how batches are constructed.
 - All core components are modular and can be replaced or extended for research, experimentation, or production use.
 
 ## Contribution Guide

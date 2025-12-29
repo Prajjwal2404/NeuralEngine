@@ -758,6 +758,8 @@ def array(data, dtype=cf.nu.float32):
     @param dtype: Desired data type of the output array.
     """
     if isinstance(data, Tensor):
+        if dtype is None:
+            return data.data.copy()
         return data.data.astype(dtype)
     return cf.nu.asarray(data, dtype=dtype)
 

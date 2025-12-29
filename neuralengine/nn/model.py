@@ -3,9 +3,11 @@ import pickle as pkl
 import neuralengine.config as cf
 from itertools import chain
 from ..tensor import Tensor, NoGrad, array
+from ..utils import concat
 from .layers import Layer, Mode, Flatten, LSTM
 from .optim import Optimizer
 from .loss import Loss
+from .dataload import DataLoader
 
 
 class Model:
@@ -19,7 +21,7 @@ class Model:
         @param input_size: Tuple or int, shape of input data samples (int if 1D).
         @param optimizer: Optimizer instance.
         @param loss: Loss instance.
-        @param metrics: List/tuple of Metric or Loss instances or func(x, y) → dict[str, float | np.ndarray].
+        @param metrics: List/tuple of Metric or Loss instances.
         """
 
         self.input_size = input_size
@@ -48,7 +50,6 @@ class Model:
         Builds the model by adding layers.
         @param layers: Variable number of Layer instances to add to the model.
         """
-
         self.parameters, prevLayer = {}, None
         for i, layer in enumerate(layers):
 
@@ -141,110 +142,84 @@ class Model:
             else: pkl.dump(self, file)
 
 
-    def train(self, x, y, epochs: int = 10, batch_size: int = 64, seed: int = None, ckpt_interval: int = None):
+    def train(self, dataloader: DataLoader, epochs: int = 10, ckpt_interval: int = None):
         """
         Trains the model on data.
-        @param x: Input data, shape (N, features)
-        @param y: Target data, shape (N, target_features)
-        @param epochs: Number of epochs
-        @param batch_size: Batch size (None for full batch)
-        @param seed: Seed for random shuffling
+        @param dataloader: DataLoader instance providing training data.
+        @param epochs: Number of epochs to train
         @param ckpt_interval: Interval (in epochs) to save checkpoints
         """
+        if not isinstance(dataloader, DataLoader):
+            raise ValueError("dataloader must be an instance of DataLoader class")
 
         for layer in self.layers:
             layer.mode = Mode.TRAIN
 
-        x, y = array(x), array(y)
-
-        if batch_size is None:
-            batch_size = x.shape[0]
-        if batch_size <= 0 or batch_size > x.shape[0]:
-            raise ValueError("batch_size must be a positive integer ≤ number of samples")
-
         for i in range(epochs):
 
-            loss_val, metric_vals = 0, {}
-            cf.nu.random.seed(seed)
-            shuffle_indices = cf.nu.random.permutation(x.shape[0])
-            x, y = x[shuffle_indices], y[shuffle_indices] # Shuffle data
-
-            for j in range(0, x.shape[0], batch_size):
-                x_batch = x[j:j + batch_size]
-                y_batch = y[j:j + batch_size]
+            for batch in dataloader:
+                x, y = batch
 
                 # Forward pass
                 for layer in self.layers:
-                    x_batch = layer(x_batch)
+                    x = layer(x)
                     # For stacked LSTM, pass outputs accordingly
-                    if isinstance(layer, LSTM): x_batch = x_batch[layer.use_output[0]]
+                    if isinstance(layer, LSTM): x = x[layer.use_output[0]]
                     
-                # Compute loss
-                loss = self.loss(x_batch, y_batch)
-                loss_val += self.loss.loss_val
+                loss = self.loss(x, y) # Compute loss
 
                 loss.backward() # Backward pass
 
                 # Compute metrics
                 for metric in self.metrics:
-                    metric_val = metric(x_batch, y_batch)
-                    if isinstance(metric, Loss):
-                        key = metric.__class__.__name__
-                        metric_vals[key] = metric_vals.get(key, 0.0) + metric.loss_val
-                        continue
-                    for key, value in metric_val.items():
-                        if value is None: continue
-                        metric_vals[key] = metric_vals.get(key, 0.0) + value
+                    metric(x, y)
 
                 # Update parameters
                 self.optimizer.step()
                 self.optimizer.reset_grad() # Reset gradients
 
-            loss_val /= (x.shape[0] / batch_size) # Average loss over batches
-            output_strs = [f"Epoch {i + 1}/{epochs}", f"Loss: {loss_val:.4f}"]
-
-            for key, value in metric_vals.items():
-                value /= (x.shape[0] / batch_size) # Average metric over batches
-                if isinstance(value, (cf.nu.ndarray)) and value.ndim == 1:
-                    value = value.mean(keepdims=False)
-                output_strs.append(f"{key}: {value:.4f}")
+            output_strs = [f"Epoch {i + 1}/{epochs}", f"Loss: {self.loss}", *self.metrics]
 
             # Save checkpoint
             if ckpt_interval and (i + 1) % ckpt_interval == 0:
                 self.save(f"checkpoints/model_epoch_{i + 1}.pkl", weights_only=True)
                 output_strs.append("Checkpoint saved")
-
             print(*output_strs, sep=", ")
 
+            # Reset loss and metrics for next epoch
+            self.loss.reset()
+            for metric in self.metrics: metric.reset()
 
-    def eval(self, x, y) -> Tensor:
+
+    def eval(self, dataloader: DataLoader) -> Tensor:
         """
         Evaluates the model on data.
-        @param x: Input data, shape (N, features)
-        @param y: Target data, shape (N, target_features)
+        @param dataloader: DataLoader instance providing evaluation data.
         @return: Output tensor after evaluation
         """
+        if not isinstance(dataloader, DataLoader):
+            raise ValueError("dataloader must be an instance of DataLoader class")
 
         for layer in self.layers:
             layer.mode = Mode.EVAL
 
-        # Forward pass
-        with NoGrad():
-            z = x
-            for layer in self.layers:
-                z = layer(z)
-                # For stacked LSTM, pass outputs accordingly
-                if isinstance(layer, LSTM): z = z[layer.use_output[0]]
+        z = []
+        for batch in dataloader:
+            x, y = batch
 
-            self.loss(z, y) # Compute loss
+            # Forward pass
+            with NoGrad():
+                for layer in self.layers:
+                    x = layer(x)
+                    # For stacked LSTM, pass outputs accordingly
+                    if isinstance(layer, LSTM): x = x[layer.use_output[0]]
 
-        # Compute metrics
-        cm = False
-        for metric in self.metrics:
-            metric(z, y)
-            cm = metric.cm if hasattr(metric, 'cm') else cm
+                z.append(x) # Accumulate outputs
+                self.loss(x, y) # Compute loss
+
+            # Compute metrics
+            for metric in self.metrics:
+                metric(x, y)
 
         print(f"Evaluation: (Loss) {self.loss}", *self.metrics, sep=", ")
-        if cm is not False:
-            print(f"Confusion Matrix:\n{cm}")
-        return z
+        return concat(*z, axis=0)

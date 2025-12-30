@@ -1,5 +1,4 @@
 import neuralengine.config as cf
-from itertools import accumulate
 
 
 autograd_enabled: bool = True
@@ -200,7 +199,7 @@ class Tensor:
             self.grad = cf.nu.ones_like(self.data)
             if self._operation: self._operation()
 
-    def _backward(self, child):
+    def _backward(self, child) -> None:
         """internal method to handle backward pass."""
         for i, c in enumerate(self._children):
             if c is child:
@@ -209,7 +208,7 @@ class Tensor:
         if self.requires_grad and not self._children:
             if self._operation: self._operation()
 
-    def to(self, device: cf.Device):
+    def to(self, device: cf.Device) -> 'Tensor':
         """Move the tensor to the specified device.
         @param device: The device to move to, either CPU or CUDA
         """
@@ -627,7 +626,7 @@ class Concatenate:
 
     def _deriv(self):
         # Gradient is split and distributed to each tensor according to their shape along axis
-        split_indices = list(accumulate([t.data.shape[self.axis] for t in self.tensors[:-1]]))
+        split_indices = cf.np.cumsum([t.data.shape[self.axis] for t in self.tensors[:-1]])
         grad = cf.nu.split(self.result.grad, split_indices, axis=self.axis)
 
         for i, tensor in enumerate(self.tensors):

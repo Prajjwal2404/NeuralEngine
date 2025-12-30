@@ -17,8 +17,7 @@ class Layer:
         self._freezed: bool = False
 
     def __call__(self, x, *args, **kwargs) -> Tensor:
-        """
-        Calls the layer's forward method with the provided input.
+        """Calls the layer's forward method with the provided input.
         @param x: Input tensor.
         @return: Output tensor after applying the layer's forward pass.
         """
@@ -58,10 +57,6 @@ class Layer:
         """Initializes layer parameters. To be implemented by subclasses."""
         pass
 
-    def forward(self, x, *args, **kwargs) -> Tensor:
-        """Performs the forward pass of the layer. To be implemented by subclasses."""
-        raise NotImplementedError("forward() must be implemented in subclasses")
-
     @property
     def freezed(self) -> bool:
         """Whether the layer's parameters are frozen (not trainable)."""
@@ -76,14 +71,15 @@ class Layer:
             elif isinstance(attr, Tensor):
                 attr.requires_grad = not freeze
 
-    def parameters(self):
-        """Yields all trainable parameters for the layer."""
+    def parameters(self) -> list[Tensor]:
+        """Collects all trainable parameters for the layer."""
+        parameters = []
         for _, attr in self.__dict__.items():
             if isinstance(attr, Layer):
-                yield from attr.parameters()
-            elif isinstance(attr, Tensor):
-                if attr.requires_grad:
-                    yield attr
+                parameters.extend(attr.parameters())
+            elif isinstance(attr, Tensor) and attr.requires_grad:
+                parameters.append(attr)
+        return parameters
 
     def to(self, device: Device) -> None:
         """Moves all parameters to the specified device (CPU or CUDA).
@@ -92,6 +88,10 @@ class Layer:
         for _, attr in self.__dict__.items():
             if isinstance(attr, (Layer, Tensor)):
                 attr.to(device)
+
+    def forward(self, x, *args, **kwargs) -> Tensor:
+        """Performs the forward pass of the layer. To be implemented by subclasses."""
+        raise NotImplementedError("forward() must be implemented in subclasses")
 
 
 class Linear(Layer):
@@ -379,6 +379,7 @@ class Sigmoid(Layer):
 
     def forward(self, x: Tensor) -> Tensor:
         # z = 1 / (1 + e^{-x})
+        x = clip(x, -88, 88)  # Prevent overflow
         z = 1 / (1 + exp(-x))
         return z
     

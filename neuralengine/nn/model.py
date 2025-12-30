@@ -1,7 +1,6 @@
 import os
 import pickle as pkl
 import neuralengine.config as cf
-from itertools import chain
 from ..tensor import Tensor, NoGrad
 from ..utils import concat
 from .layers import Layer, Mode, Flatten, LSTM
@@ -36,16 +35,14 @@ class Model:
 
 
     def __call__(self, *layers: Layer) -> None:
-        """
-        Allows the model to be called with layers to build the model.
+        """Allows the model to be called with layers to build the model.
         @param layers: Variable number of Layer instances to add to the model.
         """
         self.build(*layers)
 
 
     def build(self, *layers: Layer) -> None:
-        """
-        Builds the model by adding layers.
+        """Builds the model by adding layers.
         @param layers: Variable number of Layer instances to add to the model.
         """
         self.parameters, prevLayer = {}, None
@@ -74,16 +71,15 @@ class Model:
             if isinstance(layer, Flatten):
                 self.input_size = int(cf.np.prod(self.input_size))
 
-            self.parameters[f"layer_{i}"] = list(layer.parameters()) # Collect parameters from the layer
+            self.parameters[f"layer_{i}"] = layer.parameters() # Collect parameters from the layer
             
         self.layers = layers
-        self.optimizer.parameters = list(chain(*self.parameters.values()))
+        self.optimizer.parameters = [p for params in self.parameters.values() for p in params]
 
 
     @classmethod
     def load_model(cls, filepath: str) -> 'Model':
-        """
-        Loads the model from a file.
+        """Loads the model from a file.
         @param filepath: Path to the file from which the model will be loaded.
         @return: Loaded Model instance.
         """
@@ -101,8 +97,7 @@ class Model:
 
 
     def load_params(self, filepath: str) -> None:
-        """
-        Loads the model parameters from a file.
+        """Loads the model parameters from a file.
         @param filepath: Path to the file from which model parameters will be loaded.
         """
         filepath = filepath if filepath.endswith('.pkl') else filepath + '.pkl'
@@ -120,20 +115,19 @@ class Model:
 
             for p_old, p_new in zip(layer_old, layer_new):
                 if p_old.shape != p_new.shape:
-                    print(f"Skipping parameter load due to shape mismatch: {p_old.shape} vs {p_new.shape}")
+                    print(f"Skipping parameter load due to mismatch: {p_old.shape} vs {p_new.shape}")
                     continue 
-                p_old.data = p_new.to(device).data.copy()
+                p_old.data = p_new.to(device).data.copy() # Load parameter weights
 
 
     def save(self, filename: str, weights_only: bool = False) -> None:
-        """
-        Saves the model or model parameters to a file.
+        """Saves the model or model parameters to a file.
         @param filename: Name of the file where model will be saved.
         @param weights_only: If True, saves only weights; else saves entire model structure.
         """
         filename = filename if filename.endswith('.pkl') else filename + '.pkl'
         filepath = os.path.join(os.getcwd(), filename)
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        os.makedirs(os.path.dirname(filepath), exist_ok=True) # Ensure directory exists
 
         with open(filepath, 'wb') as file:
             if weights_only: pkl.dump(self.parameters, file)
@@ -141,8 +135,7 @@ class Model:
 
 
     def train(self, dataloader: DataLoader, epochs: int = 10, ckpt_interval: int = None) -> None:
-        """
-        Trains the model on data.
+        """Trains the model on data.
         @param dataloader: DataLoader instance providing training data.
         @param epochs: Number of epochs to train
         @param ckpt_interval: Interval (in epochs) to save checkpoints
@@ -183,7 +176,7 @@ class Model:
             if ckpt_interval and (i + 1) % ckpt_interval == 0:
                 self.save(f"checkpoints/model_epoch_{i + 1}.pkl", weights_only=True)
                 output_strs.append("Checkpoint saved")
-            print(*output_strs, sep=', ', flush=True)
+            print(*output_strs, sep=', ', flush=True) # Print epoch summary
 
             # Reset loss and metrics for next epoch
             self.loss.reset()
@@ -191,8 +184,7 @@ class Model:
 
 
     def eval(self, dataloader: DataLoader) -> Tensor:
-        """
-        Evaluates the model on data.
+        """Evaluates the model on data.
         @param dataloader: DataLoader instance providing evaluation data.
         @return: Output tensor after evaluation
         """
@@ -222,5 +214,5 @@ class Model:
 
             print(dataloader, 'Evaluation', sep=', ', end='', flush=True) # Show progress bar
 
-        print(f": (Loss) {self.loss}", *self.metrics, sep=', ', flush=True)
+        print(f": (Loss) {self.loss}", *self.metrics, sep=', ', flush=True) # Print evaluation summary
         return concat(*z, axis=0)

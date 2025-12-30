@@ -20,8 +20,7 @@ _current_device = Device.CPU # Default device is CPU
 
 
 def set_device(device: Device) -> None:
-    """
-    Sets the current device for tensor operations.
+    """Sets the current device for tensor operations.
     @param device: The device to set, either Device.CPU or Device.CUDA
     """
     global nu, _current_device
@@ -37,8 +36,7 @@ def set_device(device: Device) -> None:
 
 
 def get_device() -> Device:
-    """
-    Returns the current device being used for tensor operations.
+    """Returns the current device being used for tensor operations.
     @return: The current device, either Device.CPU or Device.CUDA
     """
     return _current_device

@@ -21,8 +21,8 @@ class DataLoader:
         self.current_batch = 0
         self.num_samples = self.x.shape[0]
         self.num_batches = (self.num_samples + batch_size - 1) // batch_size
-        self.indices = cf.nu.arange(self.num_samples)
-        self.rng = cf.nu.random.RandomState(seed)
+        self.indices = cf.nu.arange(self.num_samples) # Indices for shuffling
+        self.rng = cf.nu.random.RandomState(seed) # Random number generator
         self.bar = bar
 
     def __len__(self) -> int:
@@ -35,7 +35,7 @@ class DataLoader:
 
     def __iter__(self) -> 'DataLoader':
         """Returns an iterator over the batches."""
-        self.current_batch = 0
+        self.current_batch = 0 # Reset batch counter
         if self.shuffle:
             self.rng.shuffle(self.indices)
         return self
@@ -55,6 +55,6 @@ class DataLoader:
     def __repr__(self) -> str:
         """String representation showing progress bar."""
         percent = (self.current_batch / self.num_batches) * 100
-        filled = int(self.bar * self.current_batch // self.num_batches)
-        progress = '█' * filled + '-' * (self.bar - filled)
+        filled = int(self.bar * self.current_batch // self.num_batches) # Filled length of the bar
+        progress = '█' * filled + '-' * (self.bar - filled) # Progress bar string
         return f"\r|{progress}| {percent:.0f}%"

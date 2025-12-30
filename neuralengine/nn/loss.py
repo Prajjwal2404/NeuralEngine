@@ -8,7 +8,7 @@ class Loss:
         self.loss_val = 0
         self.count = 0
 
-    def __call__(self, z, y, *args, **kwargs):
+    def __call__(self, z, y, *args, **kwargs) -> Tensor:
         """ Calls the loss compute method with the provided predictions and targets.
         @param z: Predictions (logits or outputs of the model).
         @param y: Ground truth labels.
@@ -22,19 +22,19 @@ class Loss:
         return loss
 
     def __repr__(self) -> str:
-        """ Returns a string representation of the loss with its value if computed. """
+        """Returns a string representation of the loss with its value if computed."""
         if self.count > 0:
             return f"{self.__class__.__name__}: {(self.loss_val / self.count):.4f}"
         else:
             return "No loss computed yet."
         
     def reset(self) -> None:
-        """ Resets the accumulated loss value and count. """
+        """Resets the accumulated loss value and count."""
         self.loss_val = 0
         self.count = 0
         
     def compute(self, z, y, *args, **kwargs) -> Tensor:
-        """ Computes the loss given predictions and targets. To be implemented by subclasses. """
+        """Computes the loss given predictions and targets. To be implemented by subclasses."""
         raise NotImplementedError("compute() must be implemented in subclasses")
 
 
@@ -109,6 +109,7 @@ class GaussianNLL(Loss):
     def compute(self, z, y):
         # NLL = 1/2 (log(σ²) + ((y - μ)²) / σ²)
         mu, log_var = z[..., 0], z[..., 1]
+        log_var = clip(log_var, -88, 88)  # Prevent overflow
         var = exp(log_var) + self.eps
         loss = 0.5 * (log_var + ((y - mu) ** 2) / var)
         return mean(loss, axis=-1, keepdims=False)

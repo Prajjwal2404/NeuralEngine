@@ -8,8 +8,8 @@ class Metric:
         self.metric_val = {}
         self.count = 0
 
-    def __call__(self, z, y, *args, **kwargs):
-        """ Calls the metric compute method with the provided predictions and targets.
+    def __call__(self, z, y, *args, **kwargs) -> 'Metric':
+        """Calls the metric compute method with the provided predictions and targets.
         @param z: Predictions (logits or outputs of the model).
         @param y: Ground truth labels or targets.
         """
@@ -24,12 +24,12 @@ class Metric:
         self.count += 1
         return self
     
-    def __getitem__(self, key: str):
-        """ Allows access to individual metric values by key. """
+    def __getitem__(self, key: str) -> float | cf.np.ndarray:
+        """Allows access to individual metric values by key."""
         return self.metric_val.get(key, None)
 
     def __repr__(self) -> str:
-        """ Returns a string representation of the metric with its value if computed. """
+        """Returns a string representation of the metric with its value if computed."""
         if self.count > 0:
             metric_str = ""
             for key, value in self.metric_val.items():
@@ -42,12 +42,12 @@ class Metric:
             return "No metric computed yet."
         
     def reset(self) -> None:
-        """ Resets the accumulated metric values and count. """
+        """Resets the accumulated metric values and count."""
         self.metric_val = {}
         self.count = 0
         
     def compute(self, z, y, *args, **kwargs) -> dict[str, float | cf.np.ndarray]:
-        """ Computes the metric given predictions and targets. To be implemented by subclasses. """
+        """Computes the metric given predictions and targets. To be implemented by subclasses."""
         raise NotImplementedError("compute() must be implemented in subclasses")
 
 

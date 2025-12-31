@@ -27,8 +27,8 @@ class DataLoader:
         self.current_batch = 0
         self.num_samples = self.x.shape[0]
         self.num_batches = (self.num_samples + batch_size - 1) // batch_size
-        self.indices = cf.nu.arange(self.num_samples) # Indices for shuffling
-        self.rng = cf.nu.random.RandomState(random_seed) # Random number generator
+        self.indices = cf.xp.arange(self.num_samples) # Indices for shuffling
+        self.rng = cf.xp.random.RandomState(random_seed) # Random number generator
         self.bar_size = bar_size
 
     def __len__(self) -> int:

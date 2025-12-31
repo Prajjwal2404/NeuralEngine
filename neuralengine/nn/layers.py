@@ -5,6 +5,7 @@ from ..utils import *
 
 
 class Mode(Enum):
+    """Mode for layers: training or evaluation."""
     TRAIN = 'train'
     EVAL = 'eval'
 

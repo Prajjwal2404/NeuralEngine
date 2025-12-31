@@ -11,25 +11,26 @@ except ImportError:
 
 
 class Device(Enum):
+    """Device types supported by NeuralEngine."""
     CPU = "cpu"
     CUDA = "cuda"
 
 
-nu = np # Default to NumPy
-_current_device = Device.CPU # Default device is CPU
+xp = np # Backend array provider. Default to NumPy
+_current_device: Device = Device.CPU # Default device is CPU
 
 
 def set_device(device: Device) -> None:
     """Sets the current device for tensor operations.
     @param device: The device to set, either Device.CPU or Device.CUDA
     """
-    global nu, _current_device
+    global xp, _current_device
     if device == Device.CPU:
-        nu = np
+        xp = np
     elif device == Device.CUDA:
         if not _has_cuda:
             raise RuntimeError("Cupy is not installed or no CUDA device is available.")
-        nu = cp
+        xp = cp
     else:
         raise ValueError("device must be either Device.CPU or Device.CUDA")
     _current_device = device
@@ -39,19 +40,19 @@ def get_device() -> Device:
     """Returns the current device being used for tensor operations.
     @return: The current device, either Device.CPU or Device.CUDA
     """
-    global _current_device
     return _current_device
 
 
 class DType():
-    FLOAT16 = nu.float16
-    FLOAT32 = nu.float32
-    FLOAT64 = nu.float64
-    INT8 = nu.int8
-    INT16 = nu.int16
-    INT32 = nu.int32
-    INT64 = nu.int64
-    UINT8 = nu.uint8
-    UINT16 = nu.uint16
-    UINT32 = nu.uint32
-    UINT64 = nu.uint64
+    """Data types supported by NeuralEngine."""
+    FLOAT16 = xp.float16
+    FLOAT32 = xp.float32
+    FLOAT64 = xp.float64
+    INT8 = xp.int8
+    INT16 = xp.int16
+    INT32 = xp.int32
+    INT64 = xp.int64
+    UINT8 = xp.uint8
+    UINT16 = xp.uint16
+    UINT32 = xp.uint32
+    UINT64 = xp.uint64

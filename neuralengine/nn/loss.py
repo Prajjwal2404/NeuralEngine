@@ -5,8 +5,8 @@ from ..utils import *
 class Loss:
     """Base class for all loss functions."""
     def __init__(self):
-        self.loss_val = 0
-        self.count = 0
+        self.loss_val: float = 0.0
+        self.count: int = 0
 
     def __call__(self, z, y, *args, **kwargs) -> Tensor:
         """ Calls the loss compute method with the provided predictions and targets.
@@ -30,7 +30,7 @@ class Loss:
         
     def reset(self) -> None:
         """Resets the accumulated loss value and count."""
-        self.loss_val = 0
+        self.loss_val = 0.0
         self.count = 0
         
     def compute(self, z, y, *args, **kwargs) -> Tensor:

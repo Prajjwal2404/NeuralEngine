@@ -12,7 +12,7 @@ from .dataload import DataLoader
 
 class Model:
     """A class to build and train a neural network model.
-    Allows for defining the model architecture, optimizer, loss function, and metrics.
+    Allows for defining the model architecture, optimizer, loss function and metrics.
     The model can be trained and evaluated.
     """
     def __init__(self, input_size: tuple | int, optimizer: Optimizer = None, loss: Loss = None, 

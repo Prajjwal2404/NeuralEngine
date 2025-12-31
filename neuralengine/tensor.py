@@ -11,14 +11,13 @@ class Tensor:
         @param requires_grad: Whether to track gradients for this tensor.
         @param dtype: Data type of the tensor.
         """
-        global autograd_enabled
         self.data = array(data, dtype=dtype)
         self.requires_grad = requires_grad if autograd_enabled else False
         self.shape = self.data.shape
         self._dtype = dtype if dtype else self.data.dtype
         self._operation = _operation
         if self.requires_grad:
-            self.grad = cf.nu.zeros_like(self.data)
+            self.grad = cf.xp.zeros_like(self.data)
             self._children = []
 
         if hasattr(_operation, '__self__'):
@@ -212,13 +211,13 @@ class Tensor:
     def backward(self) -> None:
         """Compute gradients for the entire computation graph."""
         if self.requires_grad:
-            self.grad = cf.nu.ones_like(self.data)
+            self.grad = cf.xp.ones_like(self.data)
             if self._operation: self._operation()
 
     def zero_grad(self) -> None:
         """Reset gradients to zero."""
         if self.requires_grad:
-            self.grad = cf.nu.zeros_like(self.data)
+            self.grad = cf.xp.zeros_like(self.data)
 
     def to(self, device: cf.Device) -> 'Tensor':
         """Move the tensor to the specified device.
@@ -333,7 +332,7 @@ class Power:
             self.base.grad += _reshape_grad(grad, self.base.shape, grad.shape) # rescale grad to match base's shape
             self.base._backward(self.result)
         if self.exponent.requires_grad:
-            grad = self.result.grad * (self.base.data ** self.exponent.data) * cf.nu.log(self.base.data)
+            grad = self.result.grad * (self.base.data ** self.exponent.data) * cf.xp.log(self.base.data)
             self.exponent.grad += _reshape_grad(grad, self.exponent.shape, grad.shape) # rescale grad to match exponent's shape
             self.exponent._backward(self.result)
 
@@ -370,7 +369,7 @@ class Logarithm:
         requires_grad = self.tensor.requires_grad
         operation = self._deriv if requires_grad else None
 
-        self.result = Tensor(cf.nu.log(self.tensor.data), requires_grad=requires_grad, _operation=operation)
+        self.result = Tensor(cf.xp.log(self.tensor.data), requires_grad=requires_grad, _operation=operation)
         return self.result
 
     def _deriv(self):
@@ -389,7 +388,7 @@ class SquareRoot:
         requires_grad = self.tensor.requires_grad
         operation = self._deriv if requires_grad else None
 
-        self.result = Tensor(cf.nu.sqrt(self.tensor.data), requires_grad=requires_grad, _operation=operation)
+        self.result = Tensor(cf.xp.sqrt(self.tensor.data), requires_grad=requires_grad, _operation=operation)
         return self.result
 
     def _deriv(self):
@@ -408,7 +407,7 @@ class Exponential:
         requires_grad = self.tensor.requires_grad
         operation = self._deriv if requires_grad else None
 
-        self.result = Tensor(cf.nu.exp(self.tensor.data), requires_grad=requires_grad, _operation=operation)
+        self.result = Tensor(cf.xp.exp(self.tensor.data), requires_grad=requires_grad, _operation=operation)
         return self.result
 
     def _deriv(self):
@@ -427,13 +426,13 @@ class Absolute:
         requires_grad = self.tensor.requires_grad
         operation = self._deriv if requires_grad else None
 
-        self.result = Tensor(cf.nu.abs(self.tensor.data), requires_grad=requires_grad, _operation=operation)
+        self.result = Tensor(cf.xp.abs(self.tensor.data), requires_grad=requires_grad, _operation=operation)
         return self.result
 
     def _deriv(self):
         # ∂(|x|)/∂x = sign(x)
         if self.tensor.requires_grad:
-            grad = cf.nu.sign(self.tensor.data) * self.result.grad
+            grad = cf.xp.sign(self.tensor.data) * self.result.grad
             self.tensor.grad += grad
             self.tensor._backward(self.result)
 
@@ -448,7 +447,7 @@ class Summation:
         requires_grad = self.tensor.requires_grad
         operation = self._deriv if requires_grad else None
 
-        data = cf.nu.sum(self.tensor.data, axis=self.axis, keepdims=self.keepdims)
+        data = cf.xp.sum(self.tensor.data, axis=self.axis, keepdims=self.keepdims)
 
         self.result = Tensor(data, requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -458,9 +457,9 @@ class Summation:
         if self.tensor.requires_grad:
             grad = self.result.grad
             if not self.keepdims: # expand grad to match tensor's shape
-                grad = cf.nu.expand_dims(grad, axis=self.axis)
+                grad = cf.xp.expand_dims(grad, axis=self.axis)
                 
-            self.tensor.grad += cf.nu.ones_like(self.tensor.data) * grad
+            self.tensor.grad += cf.xp.ones_like(self.tensor.data) * grad
             self.tensor._backward(self.result)
 
 
@@ -474,7 +473,7 @@ class Maximum:
         requires_grad = self.tensor.requires_grad
         operation = self._deriv if requires_grad else None
 
-        data = cf.nu.max(self.tensor.data, axis=self.axis, keepdims=self.keepdims)
+        data = cf.xp.max(self.tensor.data, axis=self.axis, keepdims=self.keepdims)
 
         self.result = Tensor(data, requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -485,11 +484,11 @@ class Maximum:
             grad = self.result.grad
             max = self.result.data
             if not self.keepdims: # expand grad and max to match tensor's shape
-                grad = cf.nu.expand_dims(grad, axis=self.axis)
-                max = cf.nu.expand_dims(max, axis=self.axis)
+                grad = cf.xp.expand_dims(grad, axis=self.axis)
+                max = cf.xp.expand_dims(max, axis=self.axis)
 
             mask = (self.tensor.data == max).astype(max.dtype)
-            mask /= cf.nu.sum(mask, axis=self.axis, keepdims=True)
+            mask /= cf.xp.sum(mask, axis=self.axis, keepdims=True)
 
             self.tensor.grad += mask * grad
             self.tensor._backward(self.result)
@@ -505,7 +504,7 @@ class Minimum:
         requires_grad = self.tensor.requires_grad
         operation = self._deriv if requires_grad else None
 
-        data = cf.nu.min(self.tensor.data, axis=self.axis, keepdims=self.keepdims)
+        data = cf.xp.min(self.tensor.data, axis=self.axis, keepdims=self.keepdims)
 
         self.result = Tensor(data, requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -516,11 +515,11 @@ class Minimum:
             grad = self.result.grad
             min = self.result.data
             if not self.keepdims: # expand grad and min to match tensor's shape
-                grad = cf.nu.expand_dims(grad, axis=self.axis)
-                min = cf.nu.expand_dims(min, axis=self.axis)
+                grad = cf.xp.expand_dims(grad, axis=self.axis)
+                min = cf.xp.expand_dims(min, axis=self.axis)
 
             mask = (self.tensor.data == min).astype(min.dtype)
-            mask /= cf.nu.sum(mask, axis=self.axis, keepdims=True)
+            mask /= cf.xp.sum(mask, axis=self.axis, keepdims=True)
 
             self.tensor.grad += mask * grad
             self.tensor._backward(self.result)
@@ -536,7 +535,7 @@ class Mean:
         requires_grad = self.tensor.requires_grad
         operation = self._deriv if requires_grad else None
 
-        data = cf.nu.mean(self.tensor.data, axis=self.axis, keepdims=self.keepdims)
+        data = cf.xp.mean(self.tensor.data, axis=self.axis, keepdims=self.keepdims)
 
         self.result = Tensor(data, requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -546,9 +545,9 @@ class Mean:
         if self.tensor.requires_grad:
             grad = self.result.grad / self.tensor.shape[self.axis]
             if not self.keepdims: # expand grad to match tensor's shape
-                grad = cf.nu.expand_dims(grad, axis=self.axis)
+                grad = cf.xp.expand_dims(grad, axis=self.axis)
 
-            self.tensor.grad += cf.nu.ones_like(self.tensor.data) * grad
+            self.tensor.grad += cf.xp.ones_like(self.tensor.data) * grad
             self.tensor._backward(self.result)
 
 
@@ -562,7 +561,7 @@ class Variance:
         requires_grad = self.tensor.requires_grad
         operation = self._deriv if requires_grad else None
 
-        data = cf.nu.var(self.tensor.data, axis=self.axis, keepdims=self.keepdims)
+        data = cf.xp.var(self.tensor.data, axis=self.axis, keepdims=self.keepdims)
 
         self.result = Tensor(data, requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -570,9 +569,9 @@ class Variance:
     def _deriv(self):
         # ∂(Var(x))/∂xᵢ = 2/N·(xᵢ - mean(x))
         if self.tensor.requires_grad:
-            mean = cf.nu.mean(self.tensor.data, axis=self.axis, keepdims=True)
+            mean = cf.xp.mean(self.tensor.data, axis=self.axis, keepdims=True)
             grad = (2 / self.tensor.shape[self.axis]) * (self.tensor.data - mean)
-            grad *= self.result.grad if self.keepdims else cf.nu.expand_dims(self.result.grad, axis=self.axis)
+            grad *= self.result.grad if self.keepdims else cf.xp.expand_dims(self.result.grad, axis=self.axis)
             self.tensor.grad += grad
             self.tensor._backward(self.result)
 
@@ -586,7 +585,7 @@ class Transpose:
         requires_grad = self.tensor.requires_grad
         operation = self._deriv if requires_grad else None
 
-        data = cf.nu.transpose(self.tensor.data, axes=self.axes)
+        data = cf.xp.transpose(self.tensor.data, axes=self.axes)
 
         self.result = Tensor(data, requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -594,8 +593,8 @@ class Transpose:
     def _deriv(self):
         # Gradient is transposed back using inverse axes
         if self.tensor.requires_grad:
-            inverse_axes = cf.nu.argsort(self.axes)
-            grad = cf.nu.transpose(self.result.grad, axes=inverse_axes)
+            inverse_axes = cf.xp.argsort(self.axes)
+            grad = cf.xp.transpose(self.result.grad, axes=inverse_axes)
             self.tensor.grad += grad
             self.tensor._backward(self.result)
 
@@ -609,7 +608,7 @@ class Reshape:
         requires_grad = self.tensor.requires_grad
         operation = self._deriv if requires_grad else None
 
-        data = cf.nu.reshape(self.tensor.data, self.shape)
+        data = cf.xp.reshape(self.tensor.data, self.shape)
 
         self.result = Tensor(data, requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -617,7 +616,7 @@ class Reshape:
     def _deriv(self):
         # Gradient is reshaped back to input shape
         if self.tensor.requires_grad:
-            grad = cf.nu.reshape(self.result.grad, self.tensor.shape)
+            grad = cf.xp.reshape(self.result.grad, self.tensor.shape)
             self.tensor.grad += grad
             self.tensor._backward(self.result)
 
@@ -631,7 +630,7 @@ class Concatenate:
         requires_grad = any(t.requires_grad for t in self.tensors)
         operation = self._deriv if requires_grad else None
 
-        data = cf.nu.concatenate([t.data for t in self.tensors], axis=self.axis)
+        data = cf.xp.concatenate([t.data for t in self.tensors], axis=self.axis)
 
         self.result = Tensor(data, requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -639,7 +638,7 @@ class Concatenate:
     def _deriv(self):
         # Gradient is split and distributed to each tensor according to their shape along axis
         split_indices = cf.np.cumsum([t.data.shape[self.axis] for t in self.tensors[:-1]])
-        grad = cf.nu.split(self.result.grad, split_indices, axis=self.axis)
+        grad = cf.xp.split(self.result.grad, split_indices, axis=self.axis)
 
         for i, tensor in enumerate(self.tensors):
             if tensor.requires_grad:
@@ -656,14 +655,14 @@ class Stack:
         requires_grad = any(t.requires_grad for t in self.tensors)
         operation = self._deriv if requires_grad else None
 
-        data = cf.nu.stack([t.data for t in self.tensors], axis=self.axis)
+        data = cf.xp.stack([t.data for t in self.tensors], axis=self.axis)
 
         self.result = Tensor(data, requires_grad=requires_grad, _operation=operation)
         return self.result
 
     def _deriv(self):
         # Gradient is split and reshaped to each tensor according to their shape
-        grad = cf.nu.split(self.result.grad, len(self.tensors), axis=self.axis)
+        grad = cf.xp.split(self.result.grad, len(self.tensors), axis=self.axis)
 
         for i, tensor in enumerate(self.tensors):
             if tensor.requires_grad:
@@ -681,7 +680,7 @@ class MaskedFill:
         requires_grad = self.tensor.requires_grad or self.value.requires_grad
         operation = self._deriv if requires_grad else None
 
-        data = cf.nu.where(self.condition, self.tensor.data, self.value.data)
+        data = cf.xp.where(self.condition, self.tensor.data, self.value.data)
 
         self.result = Tensor(data, requires_grad=requires_grad, _operation=operation)
         return self.result
@@ -689,12 +688,12 @@ class MaskedFill:
     def _deriv(self):
         # Gradient is distributed to tensor where condition is True, to value where False
         if self.tensor.requires_grad:
-            grad = cf.nu.where(self.condition, self.result.grad, 0) # Only propagate grad where condition is True
+            grad = cf.xp.where(self.condition, self.result.grad, 0) # Only propagate grad where condition is True
             self.tensor.grad += grad
             self.tensor._backward(self.result)
 
         if self.value.requires_grad:
-            grad = cf.nu.where(self.condition, 0, self.result.grad) # Only propagate grad where condition is False
+            grad = cf.xp.where(self.condition, 0, self.result.grad) # Only propagate grad where condition is False
             self.value.grad += grad
             self.value._backward(self.result)
 
@@ -702,7 +701,7 @@ class MaskedFill:
 class Slice:
     def __init__(self, tensor, index):
         self.tensor = tensor if isinstance(tensor, Tensor) else Tensor(tensor)
-        self.index = index.astype(cf.nu.int32) if isinstance(index, cf.nu.ndarray) else index
+        self.index = array(index, dtype=cf.xp.int32) if isinstance(index, cf.xp.ndarray) else index
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad
@@ -714,7 +713,7 @@ class Slice:
     def _deriv(self):
         # Gradient is placed at the sliced indices
         if self.tensor.requires_grad:
-            grad = cf.nu.zeros_like(self.tensor.data)
+            grad = cf.xp.zeros_like(self.tensor.data)
             grad[self.index] = self.result.grad
             self.tensor.grad += grad
             self.tensor._backward(self.result)
@@ -723,7 +722,7 @@ class Slice:
 class SetSlice:
     def __init__(self, tensor, index, value):
         self.tensor = tensor if isinstance(tensor, Tensor) else Tensor(tensor)
-        self.index = index.astype(cf.nu.int32) if isinstance(index, cf.nu.ndarray) else index
+        self.index = array(index, dtype=cf.xp.int32) if isinstance(index, cf.xp.ndarray) else index
         self.value = value if isinstance(value, Tensor) else Tensor(value)
 
     def __call__(self):
@@ -772,7 +771,7 @@ def array(data, dtype: type = None):
         if dtype is None:
             return data.data.copy()
         return data.data.astype(dtype)
-    return cf.nu.asarray(data, dtype=dtype)
+    return cf.xp.asarray(data, dtype=dtype)
 
 
 def _reshape_grad(grad, input_shape, out_grad_shape, matmul=False):

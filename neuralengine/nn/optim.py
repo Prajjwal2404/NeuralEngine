@@ -53,7 +53,7 @@ class SGD(Optimizer):
         """Initializes velocity for momentum."""
         if self.momentum > 0:
             for param in self._params:
-                param.velocity = cf.nu.zeros_like(param.data)
+                param.velocity = cf.xp.zeros_like(param.data)
 
     def step(self) -> None:
         """Updates the parameters using gradients and learning rate."""
@@ -94,9 +94,9 @@ class Adam(Optimizer):
     def _initialize_parameters(self) -> None:
         """Initializes m and v states for Adam/RMSProp."""
         for param in self._params:
-            param.v = cf.nu.zeros_like(param.data)
+            param.v = cf.xp.zeros_like(param.data)
             if self.beta_m:
-                param.m = cf.nu.zeros_like(param.data)
+                param.m = cf.xp.zeros_like(param.data)
 
     def step(self) -> None:
         """
@@ -108,15 +108,15 @@ class Adam(Optimizer):
             # grad = ∂L/∂w + λw (L2 regularization)
             grad = param.grad + self.reg * param.data
             # v = β_v · v_prev + (1 - β_v) · grad²
-            param.v = (param.v * self.beta_v + (1 - self.beta_v) * cf.nu.square(grad))
+            param.v = (param.v * self.beta_v + (1 - self.beta_v) * cf.xp.square(grad))
             v_hat = param.v / (1 - self.beta_v ** self.t)
             if self.beta_m:
                 # m = β_m · m_prev + (1 - β_m) · grad
                 param.m = (param.m * self.beta_m + (1 - self.beta_m) * grad)
                 m_hat = param.m / (1 - self.beta_m ** self.t)
                 # Adam update: w = w - η · m̂ / (√v̂ + ε)
-                update = (self.lr * m_hat) / (cf.nu.sqrt(v_hat) + self.eps)
+                update = (self.lr * m_hat) / (cf.xp.sqrt(v_hat) + self.eps)
             else:
                 # RMSProp update: w = w - η · grad / (√v̂ + ε)
-                update = (self.lr * grad) / (cf.nu.sqrt(v_hat) + self.eps)
+                update = (self.lr * grad) / (cf.xp.sqrt(v_hat) + self.eps)
             param.data -= update

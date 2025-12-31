@@ -16,7 +16,7 @@ def zeros(shape, requires_grad: bool = False, dtype: type = None) -> Tensor:
     @param requires_grad: Track gradients
     @param dtype: Data type
     """
-    data = cf.nu.zeros(shape)
+    data = cf.xp.zeros(shape)
     return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
 def ones(shape, requires_grad: bool = False, dtype: type = None) -> Tensor:
@@ -25,7 +25,7 @@ def ones(shape, requires_grad: bool = False, dtype: type = None) -> Tensor:
     @param requires_grad: Track gradients
     @param dtype: Data type
     """
-    data = cf.nu.ones(shape)
+    data = cf.xp.ones(shape)
     return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
 def rand(shape, requires_grad: bool = False, dtype: type = None) -> Tensor:
@@ -34,7 +34,7 @@ def rand(shape, requires_grad: bool = False, dtype: type = None) -> Tensor:
     @param requires_grad: Track gradients
     @param dtype: Data type
     """
-    data = cf.nu.random.rand(*shape)
+    data = cf.xp.random.rand(*shape)
     return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
 def randn(shape, xavier: bool = False, requires_grad: bool = False, dtype: type = None) -> Tensor:
@@ -44,10 +44,10 @@ def randn(shape, xavier: bool = False, requires_grad: bool = False, dtype: type 
     @param requires_grad: Track gradients
     @param dtype: Data type
     """
-    data = cf.nu.random.randn(*shape)
+    data = cf.xp.random.randn(*shape)
     if xavier:
         # Xavier scaling: data / √(first dimension)
-        data /= cf.nu.sqrt(shape[0])
+        data /= cf.xp.sqrt(shape[0])
     return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
 def randint(low: int, high: int, shape: tuple, requires_grad: bool = False, dtype: type = None) -> Tensor:
@@ -58,10 +58,10 @@ def randint(low: int, high: int, shape: tuple, requires_grad: bool = False, dtyp
     @param requires_grad: Track gradients
     @param dtype: Data type
     """
-    if dtype and not cf.nu.issubdtype(dtype, cf.nu.integer):
+    if dtype and not cf.xp.issubdtype(dtype, cf.xp.integer):
         raise ValueError("dtype must be an integer type for randint")
     
-    data = cf.nu.random.randint(low, high, size=shape)
+    data = cf.xp.random.randint(low, high, size=shape)
     return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
 def zeros_like(tensor: Tensor, requires_grad: bool = None, dtype: type = None) -> Tensor:
@@ -120,6 +120,14 @@ def sum(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """
     return tensor.sum(axis=axis, keepdims=keepdims)
 
+def min(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
+    """Min over axis.
+    @param tensor: Input tensor
+    @param axis: Axis to min
+    @param keepdims: Keep reduced dims
+    """
+    return tensor.min(axis=axis, keepdims=keepdims)
+
 def max(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """Max over axis.
     @param tensor: Input tensor
@@ -128,13 +136,17 @@ def max(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """
     return tensor.max(axis=axis, keepdims=keepdims)
 
-def min(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
-    """Min over axis.
+def argmax(tensor: Tensor, axis: int = -1, dtype: type = None) -> Tensor:
+    """Argmax over axis.
     @param tensor: Input tensor
-    @param axis: Axis to min
-    @param keepdims: Keep reduced dims
+    @param axis: Axis to argmax
+    @param dtype: Data type
     """
-    return tensor.min(axis=axis, keepdims=keepdims)
+    if dtype and not cf.xp.issubdtype(dtype, cf.xp.integer):
+        raise ValueError("dtype must be an integer type for argmax")
+
+    indices = cf.xp.argmax(tensor.data, axis=axis)
+    return Tensor(indices, requires_grad=False, dtype=dtype)
 
 def mean(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """Mean over axis.
@@ -209,28 +221,39 @@ def clip(tensor: Tensor, min, max) -> Tensor:
     tensor = tensor.masked_fill(tensor > max, max)
     return tensor
 
-def one_hot(labels, num_classes: int | None = None) -> Tensor:
+def one_hot(labels, num_classes: int = None, dtype: type = cf.DType.INT32) -> Tensor:
     """Converts integer labels to one-hot encoding.
     @param labels: Integer labels
     @param num_classes: Number of classes
+    @param dtype: Data type
     """
-    labels = array(labels, dtype=cf.nu.int32)
+    if dtype and not cf.xp.issubdtype(dtype, cf.xp.integer):
+        raise ValueError("dtype must be an integer type for one_hot encoding")
+
+    labels = array(labels, dtype=cf.xp.int32)
     if num_classes is None:
-        num_classes = int(cf.nu.max(labels) + 1)
+        num_classes = int(cf.xp.max(labels) + 1)
     # one-hot encoding: eye(num_classes)[labels]
-    encoded = cf.nu.eye(num_classes)[labels]
-    return Tensor(encoded, dtype=cf.nu.int32)
+    encoded = cf.xp.eye(num_classes)[labels]
+    return Tensor(encoded, dtype=dtype)
 
 def safe_limit(tensor: Tensor) -> int | float:
     """Returns the safe exp limit for the tensor's data type.
     @param tensor: Input tensor
     """
     dtype = tensor.dtype
-    if cf.nu.issubdtype(dtype, cf.nu.integer):
-        info = cf.nu.iinfo(dtype)
-    elif cf.nu.issubdtype(dtype, cf.nu.floating):
-        info = cf.nu.finfo(dtype)
+    if cf.xp.issubdtype(dtype, cf.xp.integer):
+        info = cf.xp.iinfo(dtype)
+    elif cf.xp.issubdtype(dtype, cf.xp.floating):
+        info = cf.xp.finfo(dtype)
     else:
         raise ValueError("Unsupported tensor data type for type_limit")
-    exp_limit = cf.nu.log(info.max - 1)  # Approximate exp limit
+    exp_limit = cf.xp.log(info.max - 1)  # Approximate exp limit
     return exp_limit
+
+def no_grad(func):
+    """Decorator to disable gradient tracking in a function."""
+    def wrapper(*args, **kwargs):
+        with NoGrad():
+            return func(*args, **kwargs)
+    return wrapper

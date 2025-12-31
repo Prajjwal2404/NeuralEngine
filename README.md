@@ -73,7 +73,7 @@ import neuralengine as ne
 ne.set_device(ne.Device.CUDA)
 
 # Load your dataset (example: MNIST)
-x_train, y_train, x_test, y_test = load_mnist_data()
+(x_train, y_train), (x_test, y_test) = load_mnist_data()
 
 y_train = ne.one_hot(y_train) # Preprocess if needed
 y_test = ne.one_hot(y_test)
@@ -86,7 +86,8 @@ model = ne.Model(
     input_size=(28, 28),
     optimizer=ne.Adam(),
     loss=ne.CrossEntropy(),
-    metrics=ne.ClassificationMetrics()
+    metrics=ne.ClassificationMetrics(),
+    dtype=ne.DType.FLOAT16
 )
 model(
     ne.Flatten(),
@@ -142,6 +143,7 @@ NeuralEngine offers the following core capabilities:
   - Shape: `transpose`, `reshape`, `concatenate`, `stack`, `slice`, `set_slice`
   - Elementwise: `masked_fill`
   - Comparison: `==`, `!=`, `>`, `>=`, `<`, `<=`
+  - Type conversion: `dtype` (get / set)
   - Utility: `zero_grad()` (reset gradients)
   - Autograd: `backward()` (compute gradients for the computation graph)
 
@@ -158,6 +160,7 @@ NeuralEngine offers the following core capabilities:
 - `ne.Embedding(embed_size, vocab_size, timesteps=None)`: Embedding layer for mapping indices to dense vectors, with optional positional encoding.
 - `ne.LayerNorm(num_feat, eps=1e-7)`: Layer normalization for stabilizing training.
 - `ne.Dropout(prob=0.5)`: Dropout regularization for reducing overfitting.
+- `ne.Layer.dtype = ne.DType`: Get or set layer parameters data types.
 - `ne.Layer.freezed = True/False`: Freeze or unfreeze layer parameters during training.
 - All layers inherit from a common base and support extensibility for custom architectures.
 
@@ -191,7 +194,7 @@ NeuralEngine offers the following core capabilities:
 - All metrics store results as dictionaries, support batch evaluation and metric accumulation.
 
 ### Model API
-- `ne.Model(input_size, optimizer, loss, metrics)`: Create a model specifying input size, optimizer, loss function, and metrics.
+- `ne.Model(input_size, optimizer, loss, metrics, dtype)`: Create a model specifying input size, optimizer, loss function, metrics and data type for model layers.
 - Add layers by calling the model instance: `model(layer1, layer2, ...)` or using `model.build(layer1, layer2, ...)`.
 - `model.train(dataloader, epochs=10, ckpt_interval=None)`: Train the model on dataset, with support for  metric/loss reporting and checkpointing per epoch.
 - `model.eval(dataloader)`: Evaluate the model on dataset, disables gradient tracking using `with ne.NoGrad():`, prints loss and metrics, and returns output tensor.
@@ -201,13 +204,13 @@ NeuralEngine offers the following core capabilities:
 - `ne.Model.load_model(filepath)`: Load a model from a saved file.
 
 ### DataLoader
-- `ne.DataLoader(x, y, dtype=None, batch_size=32, shuffle=True, seed=None, bar=30)`: Create a data loader for batching and shuffling datasets during training and evaluation.
+- `ne.DataLoader(x, y, dtype=(None, None), batch_size=32, shuffle=True, random_seed=None, bar_size=30)`: Create a data loader for batching and shuffling datasets during training and evaluation.
 - Supports lists, tuples, numpy arrays, pandas dataframes and tensors as input data.
 - Provides batching, shuffling, and progress bar display during iteration.
 - Extensible for custom data loading strategies.
 
 ### Utilities
-- Tensor creation: `tensor(data, requires_grad=False)`, `zeros(shape)`, `ones(shape)`, `rand(shape)`, `randn(shape, xavier=False)`, `randint(low, high, shape)` and their `_like` variants for matching shapes.
+- Tensor creation: `tensor(data, requires_grad=False, dtype=None)`, `zeros(shape)`, `ones(shape)`, `rand(shape)`, `randn(shape, xavier=False)`, `randint(low, high, shape)` and their `_like` variants for matching shapes.
 - Tensor operations: `sum`, `max`, `min`, `mean`, `var`, `log`, `sqrt`, `exp`, `abs`, `concat`, `stack`, `where`, `clip`, `array(data, dtype=...)` for elementwise, reduction, and conversion operations.
 - Encoding: `one_hot(labels, num_classes=None)` for converting integer labels to one-hot encoding.
 

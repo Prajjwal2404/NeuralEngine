@@ -13,8 +13,8 @@ class Loss:
         @param z: Predictions (logits or outputs of the model).
         @param y: Ground truth labels.
         """
-        z = z if isinstance(z, Tensor) else Tensor(z)
-        y = y if isinstance(y, Tensor) else Tensor(y)
+        z = z if isinstance(z, Tensor) else tensor(z)
+        y = y if isinstance(y, Tensor) else tensor(y)
         loss = self.compute(z, y, *args, **kwargs)
 
         self.loss_val += loss.data.mean() if isinstance(loss, Tensor) else loss
@@ -109,7 +109,8 @@ class GaussianNLL(Loss):
     def compute(self, z, y):
         # NLL = 1/2 (log(σ²) + ((y - μ)²) / σ²)
         mu, log_var = z[..., 0], z[..., 1]
-        log_var = clip(log_var, -88, 88)  # Prevent overflow
+        lim = safe_limit(log_var)
+        log_var = clip(log_var, -lim, lim)  # Prevent overflow
         var = exp(log_var) + self.eps
         loss = 0.5 * (log_var + ((y - mu) ** 2) / var)
         return mean(loss, axis=-1, keepdims=False)

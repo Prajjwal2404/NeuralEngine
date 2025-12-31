@@ -4,8 +4,9 @@ import neuralengine.config as cf
 from ..tensor import Tensor, NoGrad
 from ..utils import concat
 from .layers import Layer, Mode, Flatten, LSTM
-from .optim import Optimizer
 from .loss import Loss
+from .metrics import Metric
+from .optim import Optimizer
 from .dataload import DataLoader
 
 
@@ -14,14 +15,17 @@ class Model:
     Allows for defining the model architecture, optimizer, loss function, and metrics.
     The model can be trained and evaluated.
     """
-    def __init__(self, input_size: tuple | int, optimizer: Optimizer = None, loss: Loss = None, metrics=()):
+    def __init__(self, input_size: tuple | int, optimizer: Optimizer = None, loss: Loss = None, 
+                metrics: tuple[Loss | Metric] = (), dtype: type = cf.DType.FLOAT32):
         """
         @param input_size: Tuple or int, shape of input data samples (int if 1D).
         @param optimizer: Optimizer instance.
         @param loss: Loss instance.
         @param metrics: List/tuple of Metric or Loss instances.
+        @param dtype: Data type for the model parameters.
         """
         self.input_size = input_size
+        self.dtype = dtype
 
         if not isinstance(optimizer, Optimizer):
             raise ValueError("optimizer must be an instance of Optimizer class")
@@ -32,6 +36,8 @@ class Model:
         self.loss = loss
 
         self.metrics = metrics if isinstance(metrics, (list, tuple)) else (metrics,)
+        if not all(isinstance(m, (Metric, Loss)) for m in self.metrics):
+            raise ValueError("All metrics must be instances of Metric or Loss class")
 
 
     def __call__(self, *layers: Layer) -> None:
@@ -51,6 +57,7 @@ class Model:
             if not isinstance(layer, Layer):
                 raise ValueError("All layers must be instances of Layer class")
             
+            layer.dtype = self.dtype            
             # If stacking LSTM layers, update input size and output selection
             if isinstance(layer, LSTM) and isinstance(prevLayer, LSTM):
                 out_size = prevLayer.out_size

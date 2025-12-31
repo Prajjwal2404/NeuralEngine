@@ -2,101 +2,115 @@ import neuralengine.config as cf
 from .tensor import *
 
 
-def tensor(data, requires_grad: bool = False) -> Tensor:
+def tensor(data, requires_grad: bool = False, dtype: type = None) -> Tensor:
     """Creates a Tensor from data.
     @param data: Input data
     @param requires_grad: Track gradients
+    @param dtype: Data type
     """
-    return Tensor(data, requires_grad=requires_grad)
+    return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
-def zeros(shape, requires_grad: bool = False) -> Tensor:
+def zeros(shape, requires_grad: bool = False, dtype: type = None) -> Tensor:
     """Creates a Tensor of zeros.
     @param shape: Shape of tensor
     @param requires_grad: Track gradients
+    @param dtype: Data type
     """
     data = cf.nu.zeros(shape)
-    return Tensor(data, requires_grad=requires_grad)
+    return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
-def ones(shape, requires_grad: bool = False) -> Tensor:
+def ones(shape, requires_grad: bool = False, dtype: type = None) -> Tensor:
     """Creates a Tensor of ones.
     @param shape: Shape of tensor
     @param requires_grad: Track gradients
+    @param dtype: Data type
     """
     data = cf.nu.ones(shape)
-    return Tensor(data, requires_grad=requires_grad)
+    return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
-def rand(shape, requires_grad: bool = False) -> Tensor:
+def rand(shape, requires_grad: bool = False, dtype: type = None) -> Tensor:
     """Creates a Tensor with random values (uniform).
     @param shape: Shape of tensor
     @param requires_grad: Track gradients
+    @param dtype: Data type
     """
     data = cf.nu.random.rand(*shape)
-    return Tensor(data, requires_grad=requires_grad)
+    return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
-def randn(shape, xavier: bool = False, requires_grad: bool = False) -> Tensor:
+def randn(shape, xavier: bool = False, requires_grad: bool = False, dtype: type = None) -> Tensor:
     """Creates a Tensor with random values (normal).
     @param shape: Shape of tensor
     @param xavier: Use Xavier scaling
     @param requires_grad: Track gradients
+    @param dtype: Data type
     """
     data = cf.nu.random.randn(*shape)
     if xavier:
         # Xavier scaling: data / √(first dimension)
         data /= cf.nu.sqrt(shape[0])
-    return Tensor(data, requires_grad=requires_grad)
+    return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
-def randint(low: int = 0, high: int = 9, shape: tuple = (1,), requires_grad: bool = False) -> Tensor:
+def randint(low: int, high: int, shape: tuple, requires_grad: bool = False, dtype: type = None) -> Tensor:
     """Creates a Tensor with random integers.
     @param low: Minimum value
     @param high: Maximum value
     @param shape: Shape of tensor
     @param requires_grad: Track gradients
+    @param dtype: Data type
     """
+    if dtype and not cf.nu.issubdtype(dtype, cf.nu.integer):
+        raise ValueError("dtype must be an integer type for randint")
+    
     data = cf.nu.random.randint(low, high, size=shape)
-    return Tensor(data, dtype=cf.nu.int32, requires_grad=requires_grad)
+    return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
-def zeros_like(tensor: Tensor, requires_grad: bool = None) -> Tensor:
+def zeros_like(tensor: Tensor, requires_grad: bool = None, dtype: type = None) -> Tensor:
     """Creates a zeros Tensor with same shape as input.
     @param tensor: Reference tensor
     @param requires_grad: Track gradients
+    @param dtype: Data type
     """
     shape = tensor.shape
-    return zeros(shape, tensor.requires_grad if requires_grad is None else requires_grad)
+    return zeros(shape, requires_grad if requires_grad else tensor.requires_grad, dtype=dtype)
 
-def ones_like(tensor: Tensor, requires_grad: bool = None) -> Tensor:
+def ones_like(tensor: Tensor, requires_grad: bool = None, dtype: type = None) -> Tensor:
     """Creates a ones Tensor with same shape as input.
     @param tensor: Reference tensor
     @param requires_grad: Track gradients
+    @param dtype: Data type
     """
     shape = tensor.shape
-    return ones(shape, tensor.requires_grad if requires_grad is None else requires_grad)
+    return ones(shape, requires_grad if requires_grad else tensor.requires_grad, dtype=dtype)
 
-def rand_like(tensor: Tensor, requires_grad: bool = None) -> Tensor:
+def rand_like(tensor: Tensor, requires_grad: bool = None, dtype: type = None) -> Tensor:
     """Creates a random Tensor with same shape as input. (uniform)
     @param tensor: Reference tensor
     @param requires_grad: Track gradients
+    @param dtype: Data type
     """
     shape = tensor.shape
-    return rand(shape, tensor.requires_grad if requires_grad is None else requires_grad)
+    return rand(shape, requires_grad if requires_grad else tensor.requires_grad, dtype=dtype)
 
-def randn_like(tensor: Tensor, xavier: bool = False, requires_grad: bool = None) -> Tensor:
+def randn_like(tensor: Tensor, xavier: bool = False, requires_grad: bool = None, dtype: type = None) -> Tensor:
     """Creates a random normal Tensor with same shape as input. (normal)
     @param tensor: Reference tensor
     @param xavier: Use Xavier scaling
     @param requires_grad: Track gradients
+    @param dtype: Data type
     """
     shape = tensor.shape
-    return randn(shape, xavier, tensor.requires_grad if requires_grad is None else requires_grad)
+    return randn(shape, xavier, requires_grad if requires_grad else tensor.requires_grad, dtype=dtype)
 
-def randint_like(tensor: Tensor, low: int = 0, high: int = 9, requires_grad: bool = None) -> Tensor:
+def randint_like(tensor: Tensor, low: int, high: int, requires_grad: bool = None, dtype: type = None) -> Tensor:
     """Creates a random integer Tensor with same shape as input.
     @param tensor: Reference tensor
     @param low: Minimum value
     @param high: Maximum value
     @param requires_grad: Track gradients
+    @param dtype: Data type
     """
     shape = tensor.shape
-    return randint(low, high, shape, tensor.requires_grad if requires_grad is None else requires_grad)
+    return randint(low, high, shape, requires_grad if requires_grad else tensor.requires_grad, dtype=dtype)
 
 def sum(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """Sum over axis.
@@ -206,3 +220,17 @@ def one_hot(labels, num_classes: int | None = None) -> Tensor:
     # one-hot encoding: eye(num_classes)[labels]
     encoded = cf.nu.eye(num_classes)[labels]
     return Tensor(encoded, dtype=cf.nu.int32)
+
+def safe_limit(tensor: Tensor) -> int | float:
+    """Returns the safe exp limit for the tensor's data type.
+    @param tensor: Input tensor
+    """
+    dtype = tensor.dtype
+    if cf.nu.issubdtype(dtype, cf.nu.integer):
+        info = cf.nu.iinfo(dtype)
+    elif cf.nu.issubdtype(dtype, cf.nu.floating):
+        info = cf.nu.finfo(dtype)
+    else:
+        raise ValueError("Unsupported tensor data type for type_limit")
+    exp_limit = cf.nu.log(info.max - 1)  # Approximate exp limit
+    return exp_limit

@@ -1,29 +1,35 @@
 import neuralengine.config as cf
 from ..tensor import Tensor
+from ..utils import tensor
 
 
 class DataLoader:
     """Data loader class for batching and shuffling data."""
-    def __init__(self, x, y, dtype=None, batch_size: int = 32, shuffle: bool = True, seed: int = None, bar: int = 30):
+    def __init__(self, x, y, dtype: tuple[type, type] = (cf.DType.FLOAT32, None), batch_size: int = 32, 
+                shuffle: bool = True, random_seed: int = None, bar_size: int = 30):
         """
         @param x: Input data (array-like).
         @param y: Target data (array-like).
-        @param dtype: Data type for the dataset.
+        @param dtype: Data types for the dataset.
         @param batch_size: Number of samples per batch.
         @param shuffle: Whether to shuffle the data at the start of each epoch.
-        @param seed: Seed for random number generator to ensure reproducibility.
-        @param bar: Length of the progress bar.
+        @param random_seed: Seed for random number generator to ensure reproducibility.
+        @param bar_size: Length of the progress bar.
         """
-        self.x = Tensor(x, dtype=dtype)
-        self.y = Tensor(y, dtype=dtype)
+        dtype = dtype if isinstance(dtype, (tuple, list)) else (dtype,)
+        if any(not isinstance(dt, (type, type(None))) for dt in dtype):
+            raise ValueError("dtype must be a type or None")
+        
+        self.x = tensor(x, dtype=dtype[0])
+        self.y = tensor(y, dtype=dtype[-1])
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.current_batch = 0
         self.num_samples = self.x.shape[0]
         self.num_batches = (self.num_samples + batch_size - 1) // batch_size
         self.indices = cf.nu.arange(self.num_samples) # Indices for shuffling
-        self.rng = cf.nu.random.RandomState(seed) # Random number generator
-        self.bar = bar
+        self.rng = cf.nu.random.RandomState(random_seed) # Random number generator
+        self.bar_size = bar_size
 
     def __len__(self) -> int:
         """Returns the number of batches."""
@@ -55,6 +61,6 @@ class DataLoader:
     def __repr__(self) -> str:
         """String representation showing progress bar."""
         percent = (self.current_batch / self.num_batches) * 100
-        filled = int(self.bar * self.current_batch // self.num_batches) # Filled length of the bar
-        progress = '█' * filled + '-' * (self.bar - filled) # Progress bar string
+        filled = int(self.bar_size * self.current_batch // self.num_batches) # Filled length of the bar
+        progress = '█' * filled + '-' * (self.bar_size - filled) # Progress bar string
         return f"\r|{progress}| {percent:.0f}%"

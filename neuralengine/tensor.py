@@ -5,7 +5,7 @@ autograd_enabled: bool = True
 
 class Tensor:
     """Core Tensor class for autograd and computation."""
-    def __init__(self, data, requires_grad: bool=False, dtype=cf.nu.float32, _operation=None):
+    def __init__(self, data, requires_grad: bool = False, dtype: type = None, _operation = None):
         """
         @param data: Input data for the tensor.
         @param requires_grad: Whether to track gradients for this tensor.
@@ -15,7 +15,7 @@ class Tensor:
         self.data = array(data, dtype=dtype)
         self.requires_grad = requires_grad if autograd_enabled else False
         self.shape = self.data.shape
-        self.dtype = dtype
+        self._dtype = dtype if dtype else self.data.dtype
         self._operation = _operation
         if self.requires_grad:
             self.grad = cf.nu.zeros_like(self.data)
@@ -187,17 +187,18 @@ class Tensor:
         @param fill: Value to fill where mask is True
         """
         return MaskedFill(fill, mask, self)()
-
-    def zero_grad(self) -> None:
-        """Reset gradients to zero."""
-        if self.requires_grad:
-            self.grad = cf.nu.zeros_like(self.data)
-
-    def backward(self) -> None:
-        """Compute gradients for the entire computation graph."""
-        if self.requires_grad:
-            self.grad = cf.nu.ones_like(self.data)
-            if self._operation: self._operation()
+    
+    @property
+    def dtype(self) -> type:
+        """Data type of the tensor."""
+        return self._dtype
+    
+    @dtype.setter
+    def dtype(self, dtype: type) -> None:
+        self._dtype = dtype
+        for attr in ['data', 'grad', 'm', 'v', 'velocity']:
+            if hasattr(self, attr):
+                setattr(self, attr, array(getattr(self, attr), dtype=dtype)) 
 
     def _backward(self, child) -> None:
         """internal method to handle backward pass."""
@@ -207,6 +208,17 @@ class Tensor:
                 break
         if self.requires_grad and not self._children:
             if self._operation: self._operation()
+
+    def backward(self) -> None:
+        """Compute gradients for the entire computation graph."""
+        if self.requires_grad:
+            self.grad = cf.nu.ones_like(self.data)
+            if self._operation: self._operation()
+
+    def zero_grad(self) -> None:
+        """Reset gradients to zero."""
+        if self.requires_grad:
+            self.grad = cf.nu.zeros_like(self.data)
 
     def to(self, device: cf.Device) -> 'Tensor':
         """Move the tensor to the specified device.
@@ -751,7 +763,7 @@ class NoGrad:
 
 
 
-def array(data, dtype=cf.nu.float32):
+def array(data, dtype: type = None):
     """Convert data to a numpy array if it is not already.
     @param data: Input data to convert.
     @param dtype: Desired data type of the output array.
@@ -765,7 +777,7 @@ def array(data, dtype=cf.nu.float32):
 
 def _reshape_grad(grad, input_shape, out_grad_shape, matmul=False):
     """Reshape the gradient to match the input shape."""
-    
+
     grad_dim = len(out_grad_shape)
     in_dim = len(input_shape)
     for _ in range(grad_dim - in_dim):

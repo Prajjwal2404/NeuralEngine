@@ -1,5 +1,5 @@
 from enum import Enum
-from ..config import Device
+from ..config import Device, DType
 from ..tensor import Tensor
 from ..utils import *
 
@@ -14,6 +14,7 @@ class Layer:
     def __init__(self):
         self._mode: Mode = Mode.TRAIN
         self._in_size: tuple | None = None
+        self._dtype: type = DType.FLOAT32
         self._freezed: bool = False
 
     def __call__(self, x, *args, **kwargs) -> Tensor:
@@ -21,7 +22,7 @@ class Layer:
         @param x: Input tensor.
         @return: Output tensor after applying the layer's forward pass.
         """
-        x = x if isinstance(x, Tensor) else Tensor(x)
+        x = x if isinstance(x, Tensor) else tensor(x)
         return self.forward(x, *args, **kwargs)
 
     @property
@@ -56,6 +57,18 @@ class Layer:
     def _initialize_parameters(self) -> None:
         """Initializes layer parameters. To be implemented by subclasses."""
         pass
+
+    @property
+    def dtype(self) -> type:
+        """Data type of the layer's parameters."""
+        return self._dtype
+    
+    @dtype.setter
+    def dtype(self, dtype: type) -> None:
+        self._dtype = dtype
+        for _, attr in self.__dict__.items():
+            if isinstance(attr, (Layer, Tensor)):
+                attr.dtype = dtype
 
     @property
     def freezed(self) -> bool:
@@ -114,9 +127,9 @@ class Linear(Layer):
 
     def _initialize_parameters(self) -> None:
         # Xavier initialization for weights
-        self.W = randn((*self.in_size, self.out_size), xavier=True, requires_grad=True)
+        self.W = randn((*self.in_size, self.out_size), xavier=True, requires_grad=True, dtype=self.dtype)
         if self.has_bias:
-            self.b = zeros((1, self.out_size), requires_grad=True)
+            self.b = zeros((1, self.out_size), requires_grad=True, dtype=self.dtype)
 
     def forward(self, x: Tensor) -> Tensor:
         # z = x.W + b
@@ -224,7 +237,7 @@ class MultiplicativeAttention(Layer):
         if in_size: self.in_size = in_size
 
     def _initialize_parameters(self) -> None:
-        self.Wa = randn((self.out_size, self.in_size[-1]), xavier=True, requires_grad=True)
+        self.Wa = randn((self.out_size, self.in_size[-1]), xavier=True, requires_grad=True, dtype=self.dtype)
 
     def forward(self, h: Tensor, x: Tensor) -> Tensor:
         # scores = (q.Wa.xᵗ) / √d_k
@@ -253,12 +266,12 @@ class MultiHeadAttention(Layer):
         self.out_size = self.in_size[-1]
         self.head_dim = self.out_size // self.num_heads # Dimension of each head's output
         # Initialize parameters for combined Q, K, V projections
-        self.Wq = randn((self.out_size, self.out_size), xavier=True, requires_grad=True)
-        self.Wk = randn((self.out_size, self.out_size), xavier=True, requires_grad=True)
-        self.Wv = randn((self.out_size, self.out_size), xavier=True, requires_grad=True)
+        self.Wq = randn((self.out_size, self.out_size), xavier=True, requires_grad=True, dtype=self.dtype)
+        self.Wk = randn((self.out_size, self.out_size), xavier=True, requires_grad=True, dtype=self.dtype)
+        self.Wv = randn((self.out_size, self.out_size), xavier=True, requires_grad=True, dtype=self.dtype)
         
         # Output projection
-        self.Wo = randn((self.out_size, self.out_size), xavier=True, requires_grad=True)
+        self.Wo = randn((self.out_size, self.out_size), xavier=True, requires_grad=True, dtype=self.dtype)
 
     def forward(self, x: Tensor, y: Tensor = None) -> Tensor:
         batch_size, seq_len_q, _ = x.shape
@@ -300,11 +313,11 @@ class Embedding(Layer):
 
         if self.timesteps:
             # Positional encoding for n timesteps
-            self.PE = randn((self.timesteps, self.out_size), xavier=True, requires_grad=True)
+            self.PE = randn((self.timesteps, self.out_size), xavier=True, requires_grad=True, dtype=self.dtype)
 
     def _initialize_parameters(self) -> None:
         # Token Embedding matrix
-        self.TE = randn((*self.in_size, self.out_size), xavier=True, requires_grad=True)
+        self.TE = randn((*self.in_size, self.out_size), xavier=True, requires_grad=True, dtype=self.dtype)
 
     def forward(self, x: Tensor) -> Tensor:
         # z = TE[x]
@@ -324,9 +337,11 @@ class LayerNorm(Layer):
         """
         super().__init__()
         self.eps = eps
-        if num_feat:
-            self.gamma = ones(num_feat, requires_grad=True)
-            self.beta = zeros(num_feat, requires_grad=True)
+        if num_feat: self.in_size = num_feat
+
+    def _initialize_parameters(self) -> None:    
+        self.gamma = ones(self.in_size, requires_grad=True, dtype=self.dtype)
+        self.beta = zeros(self.in_size, requires_grad=True, dtype=self.dtype)
 
     def forward(self, x: Tensor) -> Tensor:
         # z = (x - μ) / (σ + ε)
@@ -353,7 +368,7 @@ class Dropout(Layer):
         if self.mode == Mode.EVAL:
             return x
         
-        mask = rand(x.shape) < self.prob
+        mask = rand(x.shape, dtype=self.dtype) < self.prob
         z = x.masked_fill(mask, 0)
         z /= (1 - self.prob)
         return z
@@ -379,7 +394,8 @@ class Sigmoid(Layer):
 
     def forward(self, x: Tensor) -> Tensor:
         # z = 1 / (1 + e^{-x})
-        x = clip(x, -88, 88)  # Prevent overflow
+        lim = safe_limit(x)
+        x = clip(x, -lim, lim)  # Prevent overflow
         z = 1 / (1 + exp(-x))
         return z
     
@@ -404,7 +420,7 @@ class ReLU(Layer):
         @param parametric: (Parametric ReLU) Whether to use a learnable parameter for alpha.
         """
         super().__init__()
-        self.alpha = Tensor(alpha, requires_grad=parametric)
+        self.alpha = tensor(alpha, requires_grad=parametric, dtype=self.dtype)
 
     def forward(self, x: Tensor) -> Tensor:
         # ReLU: z = max(x, 0) or Leaky/Parametric: z = x if x > 0 else α · x
@@ -420,7 +436,7 @@ class SiLU(Layer):
         """
         super().__init__()
         self.sigmoid = Sigmoid()
-        self.beta = Tensor(1.0, requires_grad=beta)
+        self.beta = tensor(1.0, requires_grad=beta, dtype=self.dtype)
 
     def forward(self, x: Tensor) -> Tensor:
         # z = x · σ(βx)

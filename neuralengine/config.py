@@ -39,4 +39,19 @@ def get_device() -> Device:
     """Returns the current device being used for tensor operations.
     @return: The current device, either Device.CPU or Device.CUDA
     """
+    global _current_device
     return _current_device
+
+
+class DType():
+    FLOAT16 = nu.float16
+    FLOAT32 = nu.float32
+    FLOAT64 = nu.float64
+    INT8 = nu.int8
+    INT16 = nu.int16
+    INT32 = nu.int32
+    INT64 = nu.int64
+    UINT8 = nu.uint8
+    UINT16 = nu.uint16
+    UINT32 = nu.uint32
+    UINT64 = nu.uint64

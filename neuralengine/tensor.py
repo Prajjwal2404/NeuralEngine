@@ -1,9 +1,7 @@
 import neuralengine.config as cf
 
 
-autograd_enabled: bool = True
-
-class Tensor:
+class Tensor(metaclass=cf.Typed):
     """Core Tensor class for autograd and computation."""
     def __init__(self, data, requires_grad: bool = False, dtype: type = None, _operation = None):
         """
@@ -14,20 +12,18 @@ class Tensor:
         self.data = array(data, dtype=dtype)
         self.requires_grad = requires_grad if autograd_enabled else False
         self.shape = self.data.shape
-        self._dtype = dtype if dtype else self.data.dtype
+        self._dtype = dtype if dtype else self.data.dtype.type
         self._operation = _operation
         if self.requires_grad:
             self.grad = cf.xp.zeros_like(self.data)
             self._children = []
 
         if hasattr(_operation, '__self__'):
-            for _, attr in _operation.__self__.__dict__.items():
+            for attr in _operation.__self__.__dict__.values():
                 if isinstance(attr, Tensor) and attr.requires_grad:
                     attr._children.append(self)
                 elif isinstance(attr, list):
-                    for t in attr:
-                        if isinstance(t, Tensor) and t.requires_grad:
-                            t._children.append(self)
+                    [t._children.append(self) for t in attr if hasattr(t, '_children')]
 
     def __repr__(self) -> str:
         """String representation of the tensor."""
@@ -231,8 +227,6 @@ class Tensor:
                 raise RuntimeError("Cupy is not installed or no CUDA device is available.")
             if isinstance(self.data, cf.cp.ndarray): return self
             transfer_fn = cf.cp.asarray
-        else:
-            raise ValueError("device must be either Device.CPU or Device.CUDA")
 
         for attr in ['data', 'grad', 'm', 'v', 'velocity']:
             if hasattr(self, attr):
@@ -257,11 +251,11 @@ class Add:
         # ∂(a + b)/∂a = 1, ∂(a + b)/∂b = 1
         if self.a.requires_grad:
             grad = self.result.grad
-            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # rescale grad to match a's shape
+            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # rescale grad to match a
             self.a._backward(self.result)
         if self.b.requires_grad:
             grad = self.result.grad
-            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # rescale grad to match b's shape
+            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # rescale grad to match b
             self.b._backward(self.result)
 
 
@@ -281,11 +275,11 @@ class Multiply:
         # ∂(a·b)/∂a = b, ∂(a·b)/∂b = a
         if self.a.requires_grad:
             grad = self.result.grad * self.b.data
-            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # rescale grad to match a's shape
+            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # rescale grad to match a
             self.a._backward(self.result)
         if self.b.requires_grad:
             grad = self.result.grad * self.a.data
-            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # rescale grad to match b's shape
+            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # rescale grad to match b
             self.b._backward(self.result)
 
 
@@ -305,36 +299,36 @@ class Divide:
         # ∂(a/b)/∂a = 1/b, ∂(a/b)/∂b = -a/b²
         if self.a.requires_grad:
             grad = self.result.grad / self.b.data
-            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # rescale grad to match a's shape
+            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # rescale grad to match a
             self.a._backward(self.result)
         if self.b.requires_grad:
-            grad = -self.result.grad * (self.a.data / (self.b.data ** 2))
-            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # rescale grad to match b's shape
+            grad = -self.result.grad * (self.result.data / self.b.data) # -a/b² = -(a/b)·(1/b) = -result·(1/b)
+            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # rescale grad to match b
             self.b._backward(self.result)
 
 
 class Power:
-    def __init__(self, base, exponent):
+    def __init__(self, base, exp):
         self.base = base if isinstance(base, Tensor) else Tensor(base)
-        self.exponent = exponent if isinstance(exponent, Tensor) else Tensor(exponent)
+        self.exp = exp if isinstance(exp, Tensor) else Tensor(exp)
 
     def __call__(self):
-        requires_grad = self.base.requires_grad or self.exponent.requires_grad
+        requires_grad = self.base.requires_grad or self.exp.requires_grad
         operation = self._deriv if requires_grad else None
 
-        self.result = Tensor(self.base.data ** self.exponent.data, requires_grad=requires_grad, _operation=operation)
+        self.result = Tensor(self.base.data ** self.exp.data, requires_grad=requires_grad, _operation=operation)
         return self.result
 
     def _deriv(self):
         # ∂(a^b)/∂a = b·a^{b-1}, ∂(a^b)/∂b = a^b·ln(a)
         if self.base.requires_grad:
-            grad = self.result.grad * (self.exponent.data * (self.base.data ** (self.exponent.data - 1)))
-            self.base.grad += _reshape_grad(grad, self.base.shape, grad.shape) # rescale grad to match base's shape
+            grad = self.result.grad * (self.exp.data * (self.base.data ** (self.exp.data - 1)))
+            self.base.grad += _reshape_grad(grad, self.base.shape, grad.shape) # rescale grad to match base
             self.base._backward(self.result)
-        if self.exponent.requires_grad:
-            grad = self.result.grad * (self.base.data ** self.exponent.data) * cf.xp.log(self.base.data)
-            self.exponent.grad += _reshape_grad(grad, self.exponent.shape, grad.shape) # rescale grad to match exponent's shape
-            self.exponent._backward(self.result)
+        if self.exp.requires_grad:
+            grad = self.result.grad * (self.base.data ** self.exp.data) * cf.xp.log(self.base.data)
+            self.exp.grad += _reshape_grad(grad, self.exp.shape, grad.shape) # rescale grad to match exponent
+            self.exp._backward(self.result)
 
 
 class MatrixMul:
@@ -353,11 +347,11 @@ class MatrixMul:
         # ∂(A·B)/∂A = dL/dZ · Bᵗ, ∂(A·B)/∂B = Aᵗ · dL/dZ
         if self.a.requires_grad:
             grad = self.result.grad @ self.b.data.swapaxes(-1, -2)
-            self.a.grad += _reshape_grad(grad, self.a.shape, grad.shape, matmul=True) # rescale grad to match a's shape
+            self.a.grad += _reshape_grad(grad, self.a.shape, grad.shape, matmul=True) # rescale grad to match a
             self.a._backward(self.result)
         if self.b.requires_grad:
             grad = self.a.data.swapaxes(-1, -2) @ self.result.grad
-            self.b.grad += _reshape_grad(grad, self.b.shape, grad.shape, matmul=True) # rescale grad to match b's shape
+            self.b.grad += _reshape_grad(grad, self.b.shape, grad.shape, matmul=True) # rescale grad to match b
             self.b._backward(self.result)
 
 
@@ -369,7 +363,8 @@ class Logarithm:
         requires_grad = self.tensor.requires_grad
         operation = self._deriv if requires_grad else None
 
-        self.result = Tensor(cf.xp.log(self.tensor.data), requires_grad=requires_grad, _operation=operation)
+        data = _safe_limit(self.tensor.data, 'log') # Prevent invalid values
+        self.result = Tensor(cf.xp.log(data), requires_grad=requires_grad, _operation=operation)
         return self.result
 
     def _deriv(self):
@@ -388,7 +383,8 @@ class SquareRoot:
         requires_grad = self.tensor.requires_grad
         operation = self._deriv if requires_grad else None
 
-        self.result = Tensor(cf.xp.sqrt(self.tensor.data), requires_grad=requires_grad, _operation=operation)
+        data = _safe_limit(self.tensor.data, 'sqrt') # Prevent invalid values
+        self.result = Tensor(cf.xp.sqrt(data), requires_grad=requires_grad, _operation=operation)
         return self.result
 
     def _deriv(self):
@@ -407,7 +403,8 @@ class Exponential:
         requires_grad = self.tensor.requires_grad
         operation = self._deriv if requires_grad else None
 
-        self.result = Tensor(cf.xp.exp(self.tensor.data), requires_grad=requires_grad, _operation=operation)
+        data = _safe_limit(self.tensor.data, 'exp') # Prevent overflow
+        self.result = Tensor(cf.xp.exp(data), requires_grad=requires_grad, _operation=operation)
         return self.result
 
     def _deriv(self):
@@ -749,6 +746,8 @@ class SetSlice:
             self.value._backward(self.result)
 
 
+autograd_enabled: bool = True
+
 class NoGrad:
     """Context manager to disable gradient tracking."""
     def __enter__(self):
@@ -762,6 +761,7 @@ class NoGrad:
 
 
 
+@cf.Typed.validate
 def array(data, dtype: type = None):
     """Convert data to a numpy array if it is not already.
     @param data: Input data to convert.
@@ -772,6 +772,24 @@ def array(data, dtype: type = None):
             return data.data.copy()
         return data.data.astype(dtype)
     return cf.xp.asarray(data, dtype=dtype)
+
+
+def _safe_limit(data, op_type: str):
+    """Clips tensor data to safe limits for numerical stability."""
+    dtype = data.dtype
+    if cf.xp.issubdtype(dtype, cf.DType.INT):
+        info = cf.xp.iinfo(dtype)
+    elif cf.xp.issubdtype(dtype, cf.DType.FLOAT):
+        info = cf.xp.finfo(dtype)
+
+    match op_type:
+        case 'exp':
+            limit = cf.xp.log(info.max).item() - 1
+            return cf.xp.clip(data, -limit, limit)
+        case 'log':
+            return cf.xp.maximum(data, info.tiny)
+        case 'sqrt':
+            return cf.xp.maximum(data, 0.0)
 
 
 def _reshape_grad(grad, input_shape, out_grad_shape, matmul=False):

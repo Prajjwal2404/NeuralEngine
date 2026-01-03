@@ -1,8 +1,9 @@
+from ..config import Typed
 from ..tensor import Tensor, array
 from ..utils import *
 
 
-class Metric:
+class Metric(metaclass=Typed):
     """Base class for all metrics."""
     def __init__(self):
         self.metric_val: dict[str, float] = {}
@@ -16,9 +17,6 @@ class Metric:
         z = z if isinstance(z, Tensor) else tensor(z)
         y = y if isinstance(y, Tensor) else tensor(y)
         metric = self.compute(z, y, *args, **kwargs)
-
-        if not isinstance(metric, dict):
-            raise ValueError("Metric compute method must return a dictionary.")
         
         metric = {k: v.data.mean() for k, v in metric.items()}
         self.metric_val = {k: self.metric_val.get(k, 0) + v for k, v in metric.items()}
@@ -45,7 +43,7 @@ class Metric:
         self.count = 0
         
     @no_grad
-    def compute(self, z, y, *args, **kwargs) -> dict[str, Tensor]:
+    def compute(self, z: Tensor, y: Tensor, *args, **kwargs) -> dict[str, Tensor]:
         """Computes the metric given predictions and targets. To be implemented by subclasses."""
         raise NotImplementedError("compute() must be implemented in subclasses")
 
@@ -56,7 +54,7 @@ class RMSE(Metric):
         super().__init__()
 
     @no_grad
-    def compute(self, z, y):
+    def compute(self, z: Tensor, y: Tensor) -> dict[str, Tensor]:
         # mse = 1/N Σ (z - y)²
         mse = mean((z - y) ** 2, axis=-1)
         # rmse = √(mse)
@@ -74,7 +72,7 @@ class R2(Metric):
         self.eps = eps
 
     @no_grad
-    def compute(self, z, y):
+    def compute(self, z: Tensor, y: Tensor) -> dict[str, Tensor]:
         # ss_total = Σ (y - μ_y)²
         ss_total = sum((y - mean(y, axis=-1, keepdims=True)) ** 2, axis=-1)
         # ss_residual = Σ (z - y)²
@@ -86,7 +84,8 @@ class R2(Metric):
 
 class ClassificationMetrics(Metric):
     """Classification metrics: Accuracy, Precision, Recall, F1 Score, Confusion Matrix."""
-    def __init__(self, num_classes: int = None, acc: bool = True, prec: bool = False, rec: bool = False, f1: bool = False, eps: float = 1e-7):
+    def __init__(self, num_classes: int = None, acc: bool = True, prec: bool = False, \
+                rec: bool = False, f1: bool = False, eps: float = 1e-7):
         """
         @param num_classes: Number of classes for classification tasks.
         @param acc: Whether to compute accuracy.
@@ -104,7 +103,7 @@ class ClassificationMetrics(Metric):
         self.eps = eps
 
     @no_grad
-    def compute(self, z, y):
+    def compute(self, z: Tensor, y: Tensor) -> dict[str, Tensor]:
         if self.num_classes is None:
             self.num_classes = y.shape[-1]
         # Convert logits to class indices and one-hot encode
@@ -120,23 +119,23 @@ class ClassificationMetrics(Metric):
         metrics = {}
         if self.acc:
             # Accuracy = Σ TP / Σ total samples
-            denominator = sum(cm, axis=None)
-            metrics["Accuracy"] = sum(TP, axis=None) / where(denominator > 0, denominator, self.eps)
+            denom = sum(cm, axis=None)
+            metrics["Accuracy"] = sum(TP, axis=None) / where(denom > 0, denom, self.eps)
         def prec():
             # Precision = TP / (TP + FP)
-            denominator = TP + FP
-            return TP / where(denominator > 0, denominator, self.eps)
+            denom = TP + FP
+            return TP / where(denom > 0, denom, self.eps)
         if self.prec: metrics["Precision"] = prec()
         def rec():
             # Recall = TP / (TP + FN)
-            denominator = TP + FN
-            return TP / where(denominator > 0, denominator, self.eps)
+            denom = TP + FN
+            return TP / where(denom > 0, denom, self.eps)
         if self.rec: metrics["Recall"] = rec()
         if self.f1:
             # F1 = 2 * Precision * Recall / (Precision + Recall)
             p, r = prec(), rec()
-            denominator = p + r
-            metrics["F1 Score"] = 2 * p * r / where(denominator > 0, denominator, self.eps)
+            denom = p + r
+            metrics["F1 Score"] = 2 * p * r / where(denom > 0, denom, self.eps)
         return metrics
 
 
@@ -150,7 +149,7 @@ class Perplexity(Metric):
         self.eps = eps
 
     @no_grad
-    def compute(self, z, y):
+    def compute(self, z: Tensor, y: Tensor) -> dict[str, Tensor]:
         # Perplexity = exp(-1/N Σ log(p(y|x)))
         z = clip(z, self.eps, 1 - self.eps)
         log_likelihood = -sum(y * log(z), axis=-1)

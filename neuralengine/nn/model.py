@@ -1,22 +1,22 @@
 import os
 import pickle as pkl
-import neuralengine.config as cf
+from ..config import Typed, DType, get_device
 from ..tensor import Tensor, NoGrad
 from ..utils import concat
-from .layers import Layer, Mode, Flatten, LSTM
+from .layers import Layer, Mode, LSTM
 from .loss import Loss
 from .metrics import Metric
 from .optim import Optimizer
 from .dataload import DataLoader
 
 
-class Model:
+class Model(metaclass=Typed):
     """A class to build and train a neural network model.
     Allows for defining the model architecture, optimizer, loss function and metrics.
     The model can be trained and evaluated.
     """
-    def __init__(self, input_size: tuple | int, optimizer: Optimizer = None, loss: Loss = None, 
-                metrics: tuple[Loss | Metric] = (), dtype: type = cf.DType.FLOAT32):
+    def __init__(self, input_size: tuple[int, ...] | int, optimizer: Optimizer = None, loss: Loss = None, \
+                 metrics: list[Loss | Metric] = [], dtype: type = DType.FLOAT32):
         """
         @param input_size: Tuple or int, shape of input data samples (int if 1D).
         @param optimizer: Optimizer instance.
@@ -26,18 +26,9 @@ class Model:
         """
         self.input_size = input_size
         self.dtype = dtype
-
-        if not isinstance(optimizer, Optimizer):
-            raise ValueError("optimizer must be an instance of Optimizer class")
         self.optimizer = optimizer
-
-        if not isinstance(loss, Loss):
-            raise ValueError("loss must be an instance of Loss class")
         self.loss = loss
-
-        self.metrics = metrics if isinstance(metrics, (list, tuple)) else (metrics,)
-        if not all(isinstance(m, (Metric, Loss)) for m in self.metrics):
-            raise ValueError("All metrics must be instances of Metric or Loss class")
+        self.metrics = metrics if isinstance(metrics, list) else [metrics]
 
 
     def __call__(self, *layers: Layer) -> None:
@@ -51,37 +42,28 @@ class Model:
         """Builds the model by adding layers.
         @param layers: Variable number of Layer instances to add to the model.
         """
-        self.parameters, prevLayer = {}, None
+        self.parameters, prev_layer = {}, None
         for i, layer in enumerate(layers):
+            layer.dtype = self.dtype
 
-            if not isinstance(layer, Layer):
-                raise ValueError("All layers must be instances of Layer class")
-            
-            layer.dtype = self.dtype            
             # If stacking LSTM layers, update input size and output selection
-            if isinstance(layer, LSTM) and isinstance(prevLayer, LSTM):
-                out_size = prevLayer.out_size
-                if prevLayer.attention:
-                    if prevLayer.enc_size: out_size += prevLayer.enc_size
-                    else: out_size += prevLayer.out_size
-                if prevLayer.bidirectional: out_size *= 2
-                self.input_size = (*prevLayer.in_size[:-1], out_size)
-                prevLayer.return_seq = True
-                if not 0 in prevLayer.use_output:
-                    if prevLayer.return_state: prevLayer.use_output = (0, 1, 2)
-                    else: prevLayer.use_output = (0,)
-            prevLayer = layer
+            if isinstance(layer, LSTM) and isinstance(prev_layer, LSTM):
+                out_size = prev_layer.out_size
+                if prev_layer.attention: out_size += prev_layer.enc_size or out_size
+                if prev_layer.bidirectional: out_size *= 2
+                self.input_size = (*prev_layer.in_size[:-1], out_size)
+                prev_layer.return_seq = True
+                if not 0 in prev_layer.use_output:
+                    prev_layer.use_output = (0, 1, 2) if prev_layer.return_state else (0,)
 
-            if layer.in_size is None:
-                layer.in_size = self.input_size
-            self.input_size = layer.out_size if hasattr(layer, 'out_size') else self.input_size
-            if isinstance(layer, Flatten):
-                self.input_size = int(cf.np.prod(self.input_size))
+            prev_layer = layer
+            layer.in_size = layer.in_size or self.input_size
+            self.input_size = getattr(layer, 'out_size', self.input_size)
 
             self.parameters[f"layer_{i}"] = layer.parameters() # Collect parameters from the layer
             
         self.layers = layers
-        self.optimizer.parameters = [p for params in self.parameters.values() for p in params]
+        self.optimizer.parameters = [p for params in self.parameters.values() for p in params] # Flatten lists
 
 
     @classmethod
@@ -97,7 +79,7 @@ class Model:
         if not isinstance(model, cls):
             raise ValueError("Loaded object is not a Model instance")
 
-        device = cf.get_device()
+        device = get_device()
         for layer in model.layers:
             layer.to(device)
         return model
@@ -109,22 +91,22 @@ class Model:
         """
         filepath = filepath if filepath.endswith('.pkl') else filepath + '.pkl'
         with open(filepath, 'rb') as file:
-            params = pkl.load(file)
+            saved_params = pkl.load(file)
 
-        device = cf.get_device()
+        device = get_device()
         for i in range(len(self.layers)):
-            layer_old = self.parameters.get(f"layer_{i}", [])
-            layer_new = params.get(f"layer_{i}", [])
+            layer_new = self.parameters.get(f"layer_{i}", [])
+            layer_old = saved_params.get(f"layer_{i}", [])
 
-            if len(layer_old) != len(layer_new): 
+            if len(layer_new) != len(layer_old): 
                 print(f"Skipping layer_{i} parameter load due to mismatch.")
                 continue
 
-            for p_old, p_new in zip(layer_old, layer_new):
-                if p_old.shape != p_new.shape:
-                    print(f"Skipping parameter load due to mismatch: {p_old.shape} vs {p_new.shape}")
+            for p_new, p_old in zip(layer_new, layer_old):
+                if p_new.shape != p_old.shape:
+                    print(f"Skipping parameter load due to mismatch: {p_new.shape} vs {p_old.shape}")
                     continue 
-                p_old.data = p_new.to(device).data.copy() # Load parameter weights
+                p_new.data = p_old.to(device).data.copy() # Load parameter weights
 
 
     def save(self, filename: str, weights_only: bool = False) -> None:
@@ -147,9 +129,6 @@ class Model:
         @param epochs: Number of epochs to train
         @param ckpt_interval: Interval (in epochs) to save checkpoints
         """
-        if not isinstance(dataloader, DataLoader):
-            raise ValueError("dataloader must be an instance of DataLoader class")
-
         for layer in self.layers:
             layer.mode = Mode.TRAIN
 
@@ -195,9 +174,6 @@ class Model:
         @param dataloader: DataLoader instance providing evaluation data.
         @return: Output tensor after evaluation
         """
-        if not isinstance(dataloader, DataLoader):
-            raise ValueError("dataloader must be an instance of DataLoader class")
-
         for layer in self.layers:
             layer.mode = Mode.EVAL
 

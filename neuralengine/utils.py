@@ -1,7 +1,9 @@
 import neuralengine.config as cf
+from functools import wraps
 from .tensor import *
 
 
+@cf.Typed.validate
 def tensor(data, requires_grad: bool = False, dtype: type = None) -> Tensor:
     """Creates a Tensor from data.
     @param data: Input data
@@ -10,7 +12,8 @@ def tensor(data, requires_grad: bool = False, dtype: type = None) -> Tensor:
     """
     return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
-def zeros(shape, requires_grad: bool = False, dtype: type = None) -> Tensor:
+@cf.Typed.validate
+def zeros(*shape: int, requires_grad: bool = False, dtype: type = None) -> Tensor:
     """Creates a Tensor of zeros.
     @param shape: Shape of tensor
     @param requires_grad: Track gradients
@@ -19,7 +22,8 @@ def zeros(shape, requires_grad: bool = False, dtype: type = None) -> Tensor:
     data = cf.xp.zeros(shape)
     return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
-def ones(shape, requires_grad: bool = False, dtype: type = None) -> Tensor:
+@cf.Typed.validate
+def ones(*shape: int, requires_grad: bool = False, dtype: type = None) -> Tensor:
     """Creates a Tensor of ones.
     @param shape: Shape of tensor
     @param requires_grad: Track gradients
@@ -28,7 +32,8 @@ def ones(shape, requires_grad: bool = False, dtype: type = None) -> Tensor:
     data = cf.xp.ones(shape)
     return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
-def rand(shape, requires_grad: bool = False, dtype: type = None) -> Tensor:
+@cf.Typed.validate
+def rand(*shape: int, requires_grad: bool = False, dtype: type = None) -> Tensor:
     """Creates a Tensor with random values (uniform).
     @param shape: Shape of tensor
     @param requires_grad: Track gradients
@@ -37,7 +42,9 @@ def rand(shape, requires_grad: bool = False, dtype: type = None) -> Tensor:
     data = cf.xp.random.rand(*shape)
     return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
-def randn(shape, xavier: bool = False, requires_grad: bool = False, dtype: type = None) -> Tensor:
+@cf.Typed.validate
+def randn(*shape: int, xavier: bool = False, requires_grad: bool = False, \
+          dtype: type = None) -> Tensor:
     """Creates a Tensor with random values (normal).
     @param shape: Shape of tensor
     @param xavier: Use Xavier scaling
@@ -50,17 +57,16 @@ def randn(shape, xavier: bool = False, requires_grad: bool = False, dtype: type 
         data /= cf.xp.sqrt(shape[0])
     return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
-def randint(low: int, high: int, shape: tuple, requires_grad: bool = False, dtype: type = None) -> Tensor:
+@cf.Typed.validate
+def randint(low: int, high: int, *shape: int, requires_grad: bool = False, \
+            dtype: type[cf.DType.INT] = None) -> Tensor:
     """Creates a Tensor with random integers.
     @param low: Minimum value
     @param high: Maximum value
     @param shape: Shape of tensor
     @param requires_grad: Track gradients
-    @param dtype: Data type
+    @param dtype: Data type (integer type)
     """
-    if dtype and not cf.xp.issubdtype(dtype, cf.xp.integer):
-        raise ValueError("dtype must be an integer type for randint")
-    
     data = cf.xp.random.randint(low, high, size=shape)
     return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
@@ -71,7 +77,8 @@ def zeros_like(tensor: Tensor, requires_grad: bool = None, dtype: type = None) -
     @param dtype: Data type
     """
     shape = tensor.shape
-    return zeros(shape, requires_grad if requires_grad else tensor.requires_grad, dtype=dtype)
+    requires_grad=requires_grad if requires_grad else tensor.requires_grad
+    return zeros(*shape, requires_grad=requires_grad, dtype=dtype)
 
 def ones_like(tensor: Tensor, requires_grad: bool = None, dtype: type = None) -> Tensor:
     """Creates a ones Tensor with same shape as input.
@@ -80,7 +87,8 @@ def ones_like(tensor: Tensor, requires_grad: bool = None, dtype: type = None) ->
     @param dtype: Data type
     """
     shape = tensor.shape
-    return ones(shape, requires_grad if requires_grad else tensor.requires_grad, dtype=dtype)
+    requires_grad=requires_grad if requires_grad else tensor.requires_grad
+    return ones(*shape, requires_grad=requires_grad, dtype=dtype)
 
 def rand_like(tensor: Tensor, requires_grad: bool = None, dtype: type = None) -> Tensor:
     """Creates a random Tensor with same shape as input. (uniform)
@@ -89,9 +97,11 @@ def rand_like(tensor: Tensor, requires_grad: bool = None, dtype: type = None) ->
     @param dtype: Data type
     """
     shape = tensor.shape
-    return rand(shape, requires_grad if requires_grad else tensor.requires_grad, dtype=dtype)
+    requires_grad=requires_grad if requires_grad else tensor.requires_grad
+    return rand(*shape, requires_grad=requires_grad, dtype=dtype)
 
-def randn_like(tensor: Tensor, xavier: bool = False, requires_grad: bool = None, dtype: type = None) -> Tensor:
+def randn_like(tensor: Tensor, xavier: bool = False, requires_grad: bool = None, \
+               dtype: type = None) -> Tensor:
     """Creates a random normal Tensor with same shape as input. (normal)
     @param tensor: Reference tensor
     @param xavier: Use Xavier scaling
@@ -99,19 +109,23 @@ def randn_like(tensor: Tensor, xavier: bool = False, requires_grad: bool = None,
     @param dtype: Data type
     """
     shape = tensor.shape
-    return randn(shape, xavier, requires_grad if requires_grad else tensor.requires_grad, dtype=dtype)
+    requires_grad=requires_grad if requires_grad else tensor.requires_grad
+    return randn(*shape, xavier=xavier, requires_grad=requires_grad, dtype=dtype)
 
-def randint_like(tensor: Tensor, low: int, high: int, requires_grad: bool = None, dtype: type = None) -> Tensor:
+def randint_like(tensor: Tensor, low: int, high: int, requires_grad: bool = None, \
+                 dtype: type[cf.DType.INT] = None) -> Tensor:
     """Creates a random integer Tensor with same shape as input.
     @param tensor: Reference tensor
     @param low: Minimum value
     @param high: Maximum value
     @param requires_grad: Track gradients
-    @param dtype: Data type
+    @param dtype: Data type (integer type)
     """
     shape = tensor.shape
-    return randint(low, high, shape, requires_grad if requires_grad else tensor.requires_grad, dtype=dtype)
+    requires_grad=requires_grad if requires_grad else tensor.requires_grad
+    return randint(low, high, *shape, requires_grad=requires_grad, dtype=dtype)
 
+@cf.Typed.validate
 def sum(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """Sum over axis.
     @param tensor: Input tensor
@@ -120,6 +134,7 @@ def sum(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """
     return tensor.sum(axis=axis, keepdims=keepdims)
 
+@cf.Typed.validate
 def min(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """Min over axis.
     @param tensor: Input tensor
@@ -128,6 +143,7 @@ def min(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """
     return tensor.min(axis=axis, keepdims=keepdims)
 
+@cf.Typed.validate
 def max(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """Max over axis.
     @param tensor: Input tensor
@@ -136,18 +152,17 @@ def max(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """
     return tensor.max(axis=axis, keepdims=keepdims)
 
-def argmax(tensor: Tensor, axis: int = -1, dtype: type = None) -> Tensor:
+@cf.Typed.validate
+def argmax(tensor: Tensor, axis: int = -1, dtype: type[cf.DType.INT] = None) -> Tensor:
     """Argmax over axis.
     @param tensor: Input tensor
     @param axis: Axis to argmax
-    @param dtype: Data type
+    @param dtype: Data type (integer type)
     """
-    if dtype and not cf.xp.issubdtype(dtype, cf.xp.integer):
-        raise ValueError("dtype must be an integer type for argmax")
-
     indices = cf.xp.argmax(tensor.data, axis=axis)
     return Tensor(indices, requires_grad=False, dtype=dtype)
 
+@cf.Typed.validate
 def mean(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """Mean over axis.
     @param tensor: Input tensor
@@ -156,6 +171,7 @@ def mean(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """
     return tensor.mean(axis=axis, keepdims=keepdims)
 
+@cf.Typed.validate
 def var(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """Variance over axis.
     @param tensor: Input tensor
@@ -164,30 +180,35 @@ def var(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """
     return tensor.var(axis=axis, keepdims=keepdims)
 
+@cf.Typed.validate
 def log(tensor: Tensor) -> Tensor:
     """Elementwise natural logarithm.
     @param tensor: Input tensor
     """
     return Logarithm(tensor)()
 
+@cf.Typed.validate
 def sqrt(tensor: Tensor) -> Tensor:
     """Elementwise square root.
     @param tensor: Input tensor
     """
     return SquareRoot(tensor)()
 
+@cf.Typed.validate
 def exp(tensor: Tensor) -> Tensor:
     """Elementwise exponential.
     @param tensor: Input tensor
     """
     return Exponential(tensor)()
 
+@cf.Typed.validate
 def abs(tensor: Tensor) -> Tensor:
     """Elementwise absolute value.
     @param tensor: Input tensor
     """
     return Absolute(tensor)()
 
+@cf.Typed.validate
 def concat(*tensors: Tensor, axis: int = 0) -> Tensor:
     """Concatenates tensors along axis.
     @param tensors: Tensors to concatenate
@@ -195,6 +216,7 @@ def concat(*tensors: Tensor, axis: int = 0) -> Tensor:
     """
     return Concatenate(tensors, axis)()
 
+@cf.Typed.validate
 def stack(*tensors: Tensor, axis: int = 0) -> Tensor:
     """Stacks tensors along axis.
     @param tensors: Tensors to stack
@@ -202,7 +224,8 @@ def stack(*tensors: Tensor, axis: int = 0) -> Tensor:
     """
     return Stack(tensors, axis)()
 
-def where(condition, tensor: Tensor, value) -> Tensor:
+@cf.Typed.validate
+def where(condition, tensor: Tensor, value: float | Tensor) -> Tensor:
     """Elementwise selection: if condition then tensor else value.
     @param condition: Boolean mask
     @param tensor: Tensor to select
@@ -210,7 +233,8 @@ def where(condition, tensor: Tensor, value) -> Tensor:
     """
     return MaskedFill(tensor, condition, value)()
 
-def clip(tensor: Tensor, min, max) -> Tensor:
+@cf.Typed.validate
+def clip(tensor: Tensor, min: float, max: float) -> Tensor:
     """Clips tensor values to [min, max].
     @param tensor: Input tensor
     @param min: Minimum value
@@ -221,38 +245,23 @@ def clip(tensor: Tensor, min, max) -> Tensor:
     tensor = tensor.masked_fill(tensor > max, max)
     return tensor
 
-def one_hot(labels, num_classes: int = None, dtype: type = cf.DType.INT32) -> Tensor:
+@cf.Typed.validate
+def one_hot(labels, num_classes: int = None, dtype: type[cf.DType.INT] = cf.DType.INT32) -> Tensor:
     """Converts integer labels to one-hot encoding.
     @param labels: Integer labels
     @param num_classes: Number of classes
-    @param dtype: Data type
+    @param dtype: Data type (integer type)
     """
-    if dtype and not cf.xp.issubdtype(dtype, cf.xp.integer):
-        raise ValueError("dtype must be an integer type for one_hot encoding")
-
-    labels = array(labels, dtype=cf.xp.int32)
+    labels = array(labels, dtype=dtype)
     if num_classes is None:
         num_classes = int(cf.xp.max(labels) + 1)
     # one-hot encoding: eye(num_classes)[labels]
     encoded = cf.xp.eye(num_classes)[labels]
     return Tensor(encoded, dtype=dtype)
 
-def safe_limit(tensor: Tensor) -> int | float:
-    """Returns the safe exp limit for the tensor's data type.
-    @param tensor: Input tensor
-    """
-    dtype = tensor.dtype
-    if cf.xp.issubdtype(dtype, cf.xp.integer):
-        info = cf.xp.iinfo(dtype)
-    elif cf.xp.issubdtype(dtype, cf.xp.floating):
-        info = cf.xp.finfo(dtype)
-    else:
-        raise ValueError("Unsupported tensor data type for type_limit")
-    exp_limit = cf.xp.log(info.max - 1)  # Approximate exp limit
-    return exp_limit
-
 def no_grad(func):
     """Decorator to disable gradient tracking in a function."""
+    @wraps(func)
     def wrapper(*args, **kwargs):
         with NoGrad():
             return func(*args, **kwargs)

@@ -1,5 +1,5 @@
 from enum import Enum
-from ..config import Device, DType
+from ..config import Typed, DType, Device
 from ..tensor import Tensor
 from ..utils import *
 
@@ -10,15 +10,15 @@ class Mode(Enum):
     EVAL = 'eval'
 
 
-class Layer:
+class Layer(metaclass=Typed):
     """Base class for all layers."""
     def __init__(self):
         self._mode: Mode = Mode.TRAIN
-        self._in_size: tuple | None = None
+        self._in_size: tuple[int, ...] = None
         self._dtype: type = DType.FLOAT32
         self._freezed: bool = False
 
-    def __call__(self, x, *args, **kwargs) -> Tensor:
+    def __call__(self, x, *args, **kwargs) -> Tensor | list[Tensor]:
         """Calls the layer's forward method with the provided input.
         @param x: Input tensor.
         @return: Output tensor after applying the layer's forward pass.
@@ -33,31 +33,25 @@ class Layer:
     
     @mode.setter
     def mode(self, mode: Mode) -> None:
-        if mode not in (Mode.TRAIN, Mode.EVAL):
-            raise ValueError("mode must be either Mode.TRAIN or Mode.EVAL")
-        
         self._mode = mode
-        for _, attr in self.__dict__.items():
+        for attr in self.__dict__.values():
             if isinstance(attr, Layer):
                 attr.mode = mode
 
     @property
-    def in_size(self) -> tuple:
+    def in_size(self) -> tuple[int, ...]:
         """Input size of the layer."""
         return self._in_size
     
     @in_size.setter
-    def in_size(self, size: tuple | int) -> None:
-        size = size if isinstance(size, (tuple, list)) else (size,)
-        if not all(isinstance(size, int) and size > 0 for size in size):
-            raise ValueError("in_size must be all positive integers")
-        
+    def in_size(self, size: tuple[int, ...] | int) -> None:
+        size = size if isinstance(size, tuple) else (size,)
         self._in_size = size
         self._initialize_parameters()
 
     def _initialize_parameters(self) -> None:
         """Initializes layer parameters. To be implemented by subclasses."""
-        pass
+        ...
 
     @property
     def dtype(self) -> type:
@@ -67,7 +61,7 @@ class Layer:
     @dtype.setter
     def dtype(self, dtype: type) -> None:
         self._dtype = dtype
-        for _, attr in self.__dict__.items():
+        for attr in self.__dict__.values():
             if isinstance(attr, (Layer, Tensor)):
                 attr.dtype = dtype
 
@@ -79,7 +73,7 @@ class Layer:
     @freezed.setter
     def freezed(self, freeze: bool) -> None:
         self._freezed = freeze
-        for _, attr in self.__dict__.items():
+        for attr in self.__dict__.values():
             if isinstance(attr, Layer):
                 attr.freezed = freeze
             elif isinstance(attr, Tensor):
@@ -88,7 +82,7 @@ class Layer:
     def parameters(self) -> list[Tensor]:
         """Collects all trainable parameters for the layer."""
         parameters = []
-        for _, attr in self.__dict__.items():
+        for attr in self.__dict__.values():
             if isinstance(attr, Layer):
                 parameters.extend(attr.parameters())
             elif isinstance(attr, Tensor) and attr.requires_grad:
@@ -99,7 +93,7 @@ class Layer:
         """Moves all parameters to the specified device (CPU or CUDA).
         @param device: The device to move to, either CPU or CUDA
         """
-        for _, attr in self.__dict__.items():
+        for attr in self.__dict__.values():
             if isinstance(attr, (Layer, Tensor)):
                 attr.to(device)
 
@@ -110,7 +104,7 @@ class Layer:
 
 class Linear(Layer):
     """Fully connected layer."""
-    def __init__(self, out_size: int, in_size: int | tuple = None, bias: bool = True, activation: Layer = None):
+    def __init__(self, out_size: int, *in_size: int, bias: bool = True, activation: Layer = None):
         """
         @param out_size: Number of output features.
         @param in_size: Number of input features or shape of input tensor.
@@ -120,17 +114,14 @@ class Linear(Layer):
         super().__init__()
         self.has_bias = bias
         self.out_size = out_size
-        if in_size: self.in_size = in_size
-
-        if not isinstance(activation, (type(None), Layer)):
-            raise ValueError("activation must be an instance of Layer class")
         self.activation = activation
+        if in_size: self.in_size = in_size
 
     def _initialize_parameters(self) -> None:
         # Xavier initialization for weights
-        self.W = randn((*self.in_size, self.out_size), xavier=True, requires_grad=True, dtype=self.dtype)
+        self.W = randn(*self.in_size, self.out_size, xavier=True, requires_grad=True, dtype=self.dtype)
         if self.has_bias:
-            self.b = zeros((1, self.out_size), requires_grad=True, dtype=self.dtype)
+            self.b = zeros(1, self.out_size, requires_grad=True, dtype=self.dtype)
 
     def forward(self, x: Tensor) -> Tensor:
         # z = x.W + b
@@ -144,9 +135,9 @@ class Linear(Layer):
 
 class LSTM(Layer):
     """Long Short-Term Memory layer."""
-    def __init__(self, lstm_units: int, in_size: int | tuple = None, n_timesteps: int = None, bias: bool = True, 
-                 attention: bool = False, enc_size: int = None, return_seq: bool = False, 
-                 return_state: bool = False, bidirectional: bool = False, use_output: int | tuple = -1):
+    def __init__(self, lstm_units: int, *in_size: int, n_timesteps: int = None, bias: bool = True, \
+                 attention: bool = False, enc_size: int = None, return_seq: bool = False, \
+                 return_state: bool = False, bidirectional: bool = False, use_output: tuple[int, ...] = -1):
         """
         @param lstm_units: Number of LSTM units (output size).
         @param in_size: Number of input features or shape of input tensor.
@@ -168,7 +159,7 @@ class LSTM(Layer):
         self.return_seq = return_seq
         self.return_state = return_state
         self.bidirectional = bidirectional
-        self.use_output = (use_output,) if isinstance(use_output, int) else use_output
+        self.use_output = use_output if isinstance(use_output, tuple) else (use_output,)
         self.attention = MultiplicativeAttention(lstm_units) if attention else None
         self.sigmoid = Sigmoid()
         self.tanh = Tanh()
@@ -187,8 +178,8 @@ class LSTM(Layer):
 
     def forward(self, x: Tensor, c: Tensor = None, h: Tensor = None, enc_seq: Tensor = None) -> list[Tensor]:
         # LSTM forward pass
-        c = c if c else zeros((x.shape[0], self.out_size))
-        h = h if h else zeros((x.shape[0], self.out_size + self.ctx_size))
+        c = c if c else zeros(x.shape[0], self.out_size)
+        h = h if h else zeros(x.shape[0], self.out_size + self.ctx_size)
 
         output = self.lstm_loop(x, range(self.n_timesteps or x.shape[-2]), c, h, enc_seq)
         if self.bidirectional:
@@ -227,7 +218,7 @@ class LSTM(Layer):
 
 class MultiplicativeAttention(Layer):
     """Multiplicative (dot-product) attention layer."""
-    def __init__(self, units: int, in_size: int = None):
+    def __init__(self, units: int, *in_size: int):
         """
         @param units: Number of attention units (output size).
         @param in_size: Number of input features or shape of input tensor.
@@ -238,7 +229,7 @@ class MultiplicativeAttention(Layer):
         if in_size: self.in_size = in_size
 
     def _initialize_parameters(self) -> None:
-        self.Wa = randn((self.out_size, self.in_size[-1]), xavier=True, requires_grad=True, dtype=self.dtype)
+        self.Wa = Linear(self.in_size[-1], self.out_size, bias=False)
 
     def forward(self, h: Tensor, x: Tensor) -> Tensor:
         # scores = (q.Wa.xᵗ) / √d_k
@@ -253,7 +244,7 @@ class MultiplicativeAttention(Layer):
 
 class MultiHeadAttention(Layer):
     """Multi-head attention layer."""
-    def __init__(self, num_heads: int = 1, in_size: int | tuple = None):
+    def __init__(self, *in_size: int, num_heads: int = 1):
         """
         @param num_heads: Number of attention heads.
         @param in_size: Number of input features or shape of input tensor.
@@ -267,12 +258,12 @@ class MultiHeadAttention(Layer):
         self.out_size = self.in_size[-1]
         self.head_dim = self.out_size // self.num_heads # Dimension of each head's output
         # Initialize parameters for combined Q, K, V projections
-        self.Wq = randn((self.out_size, self.out_size), xavier=True, requires_grad=True, dtype=self.dtype)
-        self.Wk = randn((self.out_size, self.out_size), xavier=True, requires_grad=True, dtype=self.dtype)
-        self.Wv = randn((self.out_size, self.out_size), xavier=True, requires_grad=True, dtype=self.dtype)
+        self.Wq = Linear(self.out_size, self.out_size, bias=False)
+        self.Wk = Linear(self.out_size, self.out_size, bias=False)
+        self.Wv = Linear(self.out_size, self.out_size, bias=False)
         
         # Output projection
-        self.Wo = randn((self.out_size, self.out_size), xavier=True, requires_grad=True, dtype=self.dtype)
+        self.Wo = Linear(self.out_size, self.out_size, bias=False)
 
     def forward(self, x: Tensor, y: Tensor = None) -> Tensor:
         batch_size, seq_len_q, _ = x.shape
@@ -301,7 +292,7 @@ class MultiHeadAttention(Layer):
 
 class Embedding(Layer):
     """Embedding layer for mapping indices to dense vectors."""
-    def __init__(self, embed_size: int, vocab_size: int = None, timesteps: int = None):
+    def __init__(self, embed_size: int, *vocab_size: int, timesteps: int = None):
         """
         @param embed_size: Size of the embedding vectors.
         @param vocab_size: Number of unique tokens in the vocabulary.
@@ -314,11 +305,11 @@ class Embedding(Layer):
 
         if self.timesteps:
             # Positional encoding for n timesteps
-            self.PE = randn((self.timesteps, self.out_size), xavier=True, requires_grad=True, dtype=self.dtype)
+            self.PE = Linear(self.out_size, self.timesteps, bias=False)
 
     def _initialize_parameters(self) -> None:
         # Token Embedding matrix
-        self.TE = randn((*self.in_size, self.out_size), xavier=True, requires_grad=True, dtype=self.dtype)
+        self.TE = Linear(self.out_size, self.in_size, bias=False)
 
     def forward(self, x: Tensor) -> Tensor:
         # z = TE[x]
@@ -331,7 +322,7 @@ class Embedding(Layer):
 
 class LayerNorm(Layer):
     """Layer normalization."""
-    def __init__(self, num_feat: tuple = None, eps: float = 1e-7):
+    def __init__(self, *num_feat: int, eps: float = 1e-7):
         """
         @param num_feat: Number of features for normalization parameters (gamma and beta).
         @param eps: Small value for numerical stability.
@@ -341,8 +332,8 @@ class LayerNorm(Layer):
         if num_feat: self.in_size = num_feat
 
     def _initialize_parameters(self) -> None:    
-        self.gamma = ones(self.in_size, requires_grad=True, dtype=self.dtype)
-        self.beta = zeros(self.in_size, requires_grad=True, dtype=self.dtype)
+        self.gamma = ones(*self.in_size, requires_grad=True, dtype=self.dtype)
+        self.beta = zeros(*self.in_size, requires_grad=True, dtype=self.dtype)
 
     def forward(self, x: Tensor) -> Tensor:
         # z = (x - μ) / (σ + ε)
@@ -369,7 +360,7 @@ class Dropout(Layer):
         if self.mode == Mode.EVAL:
             return x
         
-        mask = rand(x.shape, dtype=self.dtype) < self.prob
+        mask = rand(*x.shape, dtype=self.dtype) < self.prob
         z = x.masked_fill(mask, 0)
         z /= (1 - self.prob)
         return z
@@ -380,9 +371,12 @@ class Flatten(Layer):
     def __init__(self):
         super().__init__()
 
+    def _initialize_parameters(self, prod: int = 1) -> None:
+        for dim in self.in_size: prod *= dim
+        self.out_size = prod
+
     def forward(self, x: Tensor) -> Tensor:
-        if len(x.shape) < 2:
-            raise ValueError("Input must have at least 2 dimensions (batch size and features)")
+        if len(x.shape) < 2: return x # Already flat
         z = x.reshape(x.shape[0], -1)
         return z
  
@@ -395,8 +389,6 @@ class Sigmoid(Layer):
 
     def forward(self, x: Tensor) -> Tensor:
         # z = 1 / (1 + e^{-x})
-        lim = safe_limit(x)
-        x = clip(x, -lim, lim)  # Prevent overflow
         z = 1 / (1 + exp(-x))
         return z
     

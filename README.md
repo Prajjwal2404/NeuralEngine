@@ -148,18 +148,18 @@ NeuralEngine offers the following core capabilities:
   - Autograd: `backward()` (compute gradients for the computation graph)
 
 ### Layers
-- `ne.Flatten()`: Flattens input tensors to 2D (batch, features).
-- `ne.Linear(out_features, activation=None)`: Fully connected layer with optional activation.
+- `ne.Linear(out_size, *in_size, bias=True, activation=None)`: Fully connected layer with optional activation.
 - `ne.LSTM(...)`: Long Short-Term Memory layer with options for attention, bidirectionality, sequence/state output. You can build deep LSTM networks by stacking multiple LSTM layers. When building encoder-decoder models, ensure that the hidden units for decoder's first layer is set correctly:
     - For a standard LSTM, the hidden state shape for the last timestep is `(batch, hidden_units)`.
     - For a bidirectional LSTM, the hidden and cell state shape becomes `(batch, hidden_units * 2)`.
     - If attention is enabled, the hidden state shape is `(batch, 2 * hidden_units)` (self-attention), if `enc_size` is provided, the hidden state shape is `(batch, hidden_units + enc_size)` (cross-attention).
     - If LSTM layers require state initializations from prior layers, set the hidden units accordingly to match the output shape of the previous LSTM (including adjustments for bidirectionality and attention).
-- `ne.MultiplicativeAttention(units, in_size=None)`: Soft attention mechanism for sequence models.
-- `ne.MultiHeadAttention(num_heads=1, in_size=None)`: Multi-head attention layer for transformer and sequence models.
-- `ne.Embedding(embed_size, vocab_size, timesteps=None)`: Embedding layer for mapping indices to dense vectors, with optional positional encoding.
-- `ne.LayerNorm(num_feat, eps=1e-7)`: Layer normalization for stabilizing training.
+- `ne.MultiplicativeAttention(units, *in_size)`: Soft attention mechanism for sequence models.
+- `ne.MultiHeadAttention(*in_size, num_heads=1)`: Multi-head attention layer for transformer and sequence models.
+- `ne.Embedding(embed_size, *vocab_size, timesteps=None)`: Embedding layer for mapping indices to dense vectors, with optional positional encoding.
+- `ne.LayerNorm(*num_feat, eps=1e-7)`: Layer normalization for stabilizing training.
 - `ne.Dropout(prob=0.5)`: Dropout regularization for reducing overfitting.
+- `ne.Flatten()`: Flattens input tensors to 2D (batch, features).
 - `ne.Layer.dtype = ne.DType`: Get or set layer parameters data types.
 - `ne.Layer.freezed = True/False`: Freeze or unfreeze layer parameters during training.
 - All layers inherit from a common base and support extensibility for custom architectures.
@@ -187,10 +187,10 @@ NeuralEngine offers the following core capabilities:
 - All optimizers support L2 regularization and gradient reset.
 
 ### Metrics
-- `ne.ClassificationMetrics(num_classes=None, acc=True, prec=False, rec=False, f1=False)`: Computes accuracy, precision, recall and F1 score for classification tasks.
+- `ne.ClassificationMetrics(num_classes=None, acc=True, prec=False, rec=False, f1=False, eps=1e-7)`: Computes accuracy, precision, recall and F1 score for classification tasks.
 - `ne.RMSE()`: Root Mean Squared Error for regression.
-- `ne.R2()`: R2 Score for regression.
-- `ne.Perplexity()`: Perplexity metric for generative models.
+- `ne.R2(eps=1e-7)`: R2 Score for regression.
+- `ne.Perplexity(eps=1e-7)`: Perplexity metric for generative models.
 - All metrics store results as dictionaries, support batch evaluation and metric accumulation.
 
 ### Model API
@@ -210,9 +210,16 @@ NeuralEngine offers the following core capabilities:
 - Extensible for custom data loading strategies.
 
 ### Utilities
-- Tensor creation: `tensor(data, requires_grad=False, dtype=None)`, `zeros(shape)`, `ones(shape)`, `rand(shape)`, `randn(shape, xavier=False)`, `randint(low, high, shape)` and their `_like` variants for matching shapes.
-- Tensor operations: `sum`, `max`, `min`, `mean`, `var`, `log`, `sqrt`, `exp`, `abs`, `concat`, `stack`, `where`, `clip`, `array(data, dtype=...)` for elementwise, reduction, and conversion operations.
+- Tensor creation: `tensor(data, requires_grad=False, dtype=None)`, `zeros(*shape)`, `ones(*shape)`, `rand(*shape)`, `randn(*shape, xavier=False)`, `randint(low, high, *shape)` and their `_like` variants for matching shapes.
+- Tensor operations: `sum`, `min`, `max`, `argmax`, `mean`, `var`, `log`, `sqrt`, `exp`, `abs`, `concat`, `stack`, `where`, `clip`, `array(data, dtype=None)` for elementwise, reduction, and conversion operations.
 - Encoding: `one_hot(labels, num_classes=None)` for converting integer labels to one-hot encoding.
+- Autograd management: `with NoGrad()` context manager to disable gradient tracking in a block, `@no_grad` decorator to disable gradients for specific functions.
+
+### Type Validation
+- `metaclass=ne.Typed` metaclass for enforcing type hints on class methods, properties and subclasses. Add `STRICT = True` in class definition to enforce strict type checking.
+- `@ne.Typed.validate` decorator for validating function arguments and return values based on type hints.
+- `ne.Typed.validation(True|False)` enable or disable type validation globally.
+- Data type enum: `ne.DType.FLOAT32`, `ne.DType.INT8`, `ne.DType.UINT16`, etc.
 
 ### Extensibility
 NeuralEngine is designed for easy extension and customization:

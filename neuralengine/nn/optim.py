@@ -2,7 +2,7 @@ import neuralengine.config as cf
 from ..tensor import Tensor
 
 
-class Optimizer:
+class Optimizer(metaclass=cf.Typed):
     """Base class for all optimizers."""
     def __init__(self):
         self._params = None
@@ -14,24 +14,21 @@ class Optimizer:
     
     @parameters.setter
     def parameters(self, params: list[Tensor]) -> None:
-        if any(not isinstance(param, Tensor) for param in params):
-            raise ValueError("params must be a iterable of Tensor objects")
-        
         self._params = params
         self._initialize_parameters()
 
     def _initialize_parameters(self) -> None:
         """Initializes optimizer-specific states. To be implemented by subclasses."""
-        pass
-
-    def step(self) -> None:
-        """Performs a single optimization step. To be implemented by subclasses."""
-        raise NotImplementedError("step() must be implemented in subclasses")
+        ...
 
     def reset_grad(self) -> None:
         """Resets the gradients of all parameters to zero."""
         for param in self._params:
             param.zero_grad()
+
+    def step(self) -> None:
+        """Performs a single optimization step. To be implemented by subclasses."""
+        raise NotImplementedError("step() must be implemented in subclasses")
 
 
 class SGD(Optimizer):
@@ -75,7 +72,8 @@ class SGD(Optimizer):
 
 class Adam(Optimizer):
     """Adam optimizer. Switches to RMSProp if only one beta is provided."""
-    def __init__(self, lr: float = 1e-3, betas: tuple[float, float] | float = (0.9, 0.99), eps: float = 1e-7, reg: float = 0):
+    def __init__(self, lr: float = 1e-3, betas: tuple[float, float] | float = (0.9, 0.99), \
+                eps: float = 1e-7, reg: float = 0):
         """
         @param lr: Learning rate
         @param betas: (beta_m, beta_v) for Adam, beta_v for RMSProp
@@ -84,7 +82,7 @@ class Adam(Optimizer):
         """
         super().__init__()
         self.lr = lr
-        betas = betas if isinstance(betas, (list, tuple)) else (betas,)
+        betas = betas if isinstance(betas, tuple) else (betas,)
         self.beta_m = betas[0] if len(betas) == 2 else None
         self.beta_v = betas[-1]
         self.eps = eps

@@ -1,8 +1,9 @@
+from ..config import Typed
 from ..tensor import Tensor
 from ..utils import *
 
 
-class Loss:
+class Loss(metaclass=Typed):
     """Base class for all loss functions."""
     def __init__(self):
         self.loss_val: float = 0.0
@@ -17,7 +18,7 @@ class Loss:
         y = y if isinstance(y, Tensor) else tensor(y)
         loss = self.compute(z, y, *args, **kwargs)
 
-        self.loss_val += loss.data.mean() if isinstance(loss, Tensor) else loss
+        self.loss_val += loss.data.mean()
         self.count += 1
         return loss
 
@@ -33,7 +34,7 @@ class Loss:
         self.loss_val = 0.0
         self.count = 0
         
-    def compute(self, z, y, *args, **kwargs) -> Tensor:
+    def compute(self, z: Tensor, y: Tensor, *args, **kwargs) -> Tensor:
         """Computes the loss given predictions and targets. To be implemented by subclasses."""
         raise NotImplementedError("compute() must be implemented in subclasses")
 
@@ -43,7 +44,7 @@ class MSE(Loss):
     def __init__(self):
         super().__init__()
 
-    def compute(self, z, y):
+    def compute(self, z: Tensor, y: Tensor) -> Tensor:
         # MSE = 1/N Σ (z - y)²
         loss = (z - y) ** 2
         return mean(loss, axis=-1, keepdims=False)
@@ -54,7 +55,7 @@ class MAE(Loss):
     def __init__(self):
         super().__init__()
 
-    def compute(self, z, y):
+    def compute(self, z: Tensor, y: Tensor) -> Tensor:
         # MAE = 1/N Σ |z - y|
         loss = abs(z - y)
         return mean(loss, axis=-1, keepdims=False)
@@ -69,7 +70,7 @@ class Huber(Loss):
         super().__init__()
         self.delta = delta
 
-    def compute(self, z, y):
+    def compute(self, z: Tensor, y: Tensor) -> Tensor:
         # Huber: if |z - y| <= δ: 1/2 (z - y)² else: δ(|z - y| - 1/2 δ)
         diff = abs(z - y)
         loss = where(diff <= self.delta, 0.5 * diff ** 2, self.delta * (diff - 0.5 * self.delta))
@@ -87,7 +88,7 @@ class CrossEntropy(Loss):
         self.binary = binary
         self.eps = eps
 
-    def compute(self, z, y):
+    def compute(self, z: Tensor, y: Tensor) -> Tensor:
         # Categorical Cross Entropy: -Σ y.log(p)
         z = clip(z, self.eps, 1 - self.eps)
         loss = -y * log(z)
@@ -106,15 +107,13 @@ class GaussianNLL(Loss):
         super().__init__()
         self.eps = eps
 
-    def compute(self, z, y):
+    def compute(self, z: Tensor, y: Tensor) -> Tensor:
         # NLL = 1/2 (log(σ²) + ((y - μ)²) / σ²)
         mu, log_var = z[..., 0], z[..., 1]
-        lim = safe_limit(log_var)
-        log_var = clip(log_var, -lim, lim)  # Prevent overflow
         var = exp(log_var) + self.eps
         loss = 0.5 * (log_var + ((y - mu) ** 2) / var)
         return mean(loss, axis=-1, keepdims=False)
-    
+
 
 class KLDivergence(Loss):
     """Kullback-Leibler Divergence loss."""
@@ -125,9 +124,9 @@ class KLDivergence(Loss):
         super().__init__()
         self.eps = eps
 
-    def compute(self, z, y):
+    def compute(self, z: Tensor, y: Tensor) -> Tensor:
         # KL(y||z) = y.log(y / z)
-        z = where(z <= 0, self.eps, z)
-        y = where(y <= 0, self.eps, y)
+        z = where(z > 0, z, self.eps)
+        y = where(y > 0, y, self.eps)
         loss = y * log(y / z)
         return sum(loss, axis=-1, keepdims=False)

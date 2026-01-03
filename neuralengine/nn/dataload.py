@@ -3,9 +3,9 @@ from ..tensor import Tensor
 from ..utils import tensor
 
 
-class DataLoader:
+class DataLoader(metaclass=cf.Typed):
     """Data loader class for batching and shuffling data."""
-    def __init__(self, x, y, dtype: tuple[type, type] = (cf.DType.FLOAT32, None), batch_size: int = 32, 
+    def __init__(self, x, y, dtype: tuple[type, type] = (cf.DType.FLOAT32, None), batch_size: int = 32, \
                 shuffle: bool = True, random_seed: int = None, bar_size: int = 30):
         """
         @param x: Input data (array-like).
@@ -16,10 +16,8 @@ class DataLoader:
         @param random_seed: Seed for random number generator to ensure reproducibility.
         @param bar_size: Length of the progress bar.
         """
-        dtype = dtype if isinstance(dtype, (tuple, list)) else (dtype,)
-        if any(not isinstance(dt, (type, type(None))) for dt in dtype):
-            raise ValueError("dtype must be a type or None")
-        
+        dtype = dtype if isinstance(dtype, tuple) else (dtype,)
+
         self.x = tensor(x, dtype=dtype[0])
         self.y = tensor(y, dtype=dtype[-1])
         self.batch_size = batch_size

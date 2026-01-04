@@ -1,8 +1,8 @@
-import inspect
 import numpy as np
 from enum import Enum
 from functools import wraps
-from typing import Any, get_origin, get_args
+from inspect import signature
+from typing import Any, get_origin, get_args, get_type_hints
 
 try:
     import cupy as cp
@@ -44,17 +44,17 @@ class Typed(type):
         @param strict: Whether to enforce strict type checking.
         """
         if func is None or not cls._enabled: return func
-        sig = inspect.signature(func)
+        sig = signature(func)
         
         @wraps(func)
         def wrapper(*args, **kwargs):
-            bound = sig.bind(*args, **kwargs)
-            bound.apply_defaults()
+            hints = get_type_hints(func)
+            (bound := sig.bind(*args, **kwargs)).apply_defaults()
             for name, val in bound.arguments.items():
                 param = sig.parameters[name]
-                hint = param.annotation
-                if hint is inspect.Parameter.empty: continue
-                # Normalize *args/**kwargs
+                hint = hints.get(name, param.annotation)
+                if hint is param.empty: continue
+                # Normalize *args / **kwargs
                 val = val if param.kind == param.VAR_POSITIONAL else \
                     val.values() if param.kind == param.VAR_KEYWORD else (val,)    
                   
@@ -62,8 +62,8 @@ class Typed(type):
                     raise TypeError(f"Argument '{name}' expected {hint}, got {type(val).__name__}")
 
             result = func(*args, **kwargs)
-            ret_hint = sig.return_annotation
-            if ret_hint is not inspect.Signature.empty and not cls._check(result, ret_hint, strict):
+            ret_hint = hints.get('return', sig.return_annotation)
+            if ret_hint is not sig.empty and not cls._check(result, ret_hint, strict):
                 raise TypeError(f"Return value expected {ret_hint}, got {type(result).__name__}")
             return result
         return wrapper
@@ -71,9 +71,8 @@ class Typed(type):
     @classmethod
     def _check(cls, val, hint, strict) -> bool:
         """Recursively checks if a value matches a type hint."""
-        # Handle Any, None and ForwardRef
+        # Handle Any, None and Optional
         if not hint or hint is Any or (not strict and val is None): return True
-        if isinstance(hint, str): return any(c.__name__ == hint for c in type(val).mro())
         origin, args = get_origin(hint), get_args(hint)
 
         # Handle Special Forms

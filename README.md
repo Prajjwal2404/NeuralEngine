@@ -23,7 +23,7 @@
 
 # NeuralEngine
 
-A framework/library for building and training neural networks in Python. NeuralEngine provides core components for constructing, training, and evaluating neural networks, with support for both CPU and GPU (CUDA) acceleration. Designed for extensibility, performance, and ease of use, it is suitable for research, prototyping, and production.
+A framework/library for building and training neural networks in Python. NeuralEngine provides core components for constructing, training and evaluating neural networks, with support for both CPU and GPU (CUDA) acceleration. Designed for extensibility, performance and ease of use, it is suitable for research, prototyping and production.
 
 ## Table of Contents
 - [Features](#features)
@@ -38,12 +38,13 @@ A framework/library for building and training neural networks in Python. NeuralE
 ## Features
 - Custom tensor operations (CPU/GPU support via NumPy and optional CuPy)
 - Configurable neural network layers (Linear, Flatten, etc.)
-- Built-in loss functions, metrics, and optimizers
+- Built-in loss functions, metrics and optimizers
 - Model class for easy training and evaluation
 - Device management (CPU/CUDA)
 - Utilities for deep learning workflows
 - Autograd capabilities using dynamic computational graphs
-- Extensible design for custom layers, losses, and optimizers
+- Extensible design for custom layers, losses and optimizers
+- Flexible data type configuration and runtime type validation
 
 ## Installation
 Install via pip:
@@ -134,7 +135,7 @@ NeuralEngine offers the following core capabilities:
 ### Tensors & Autograd
 - Custom tensor implementation supporting NumPy and CuPy backends.
 - Automatic differentiation (autograd) using dynamic computational graphs for backpropagation.
-- Supports gradients, parameter updates, and custom operations.
+- Supports gradients, parameter updates and custom operations.
 - Supported tensor operations:
   - Arithmetic: `+`, `-`, `*`, `/`, `**` (power)
   - Matrix multiplication: `@`
@@ -197,7 +198,7 @@ NeuralEngine offers the following core capabilities:
 - `ne.Model(input_size, optimizer, loss, metrics, dtype)`: Create a model specifying input size, optimizer, loss function, metrics and data type for model layers.
 - Add layers by calling the model instance: `model(layer1, layer2, ...)` or using `model.build(layer1, layer2, ...)`.
 - `model.train(dataloader, epochs=10, ckpt_interval=None)`: Train the model on dataset, with support for  metric/loss reporting and checkpointing per epoch.
-- `model.eval(dataloader)`: Evaluate the model on dataset, disables gradient tracking using `with ne.NoGrad():`, prints loss and metrics, and returns output tensor.
+- `model.eval(dataloader)`: Evaluate the model on dataset, disables gradient tracking using `with ne.NoGrad():`, prints loss and metrics and returns output tensor.
 - Layers are set to training or evaluation mode automatically during `train` and `eval`.
 - `model.save(filename, weights_only=False)`: Save the model architecture or model parameters to a file.
 - `model.load_params(filepath)`: Load model parameters from a saved file.
@@ -206,24 +207,24 @@ NeuralEngine offers the following core capabilities:
 ### DataLoader
 - `ne.DataLoader(x, y, dtype=(None, None), batch_size=32, shuffle=True, random_seed=None, bar_size=30)`: Create a data loader for batching and shuffling datasets during training and evaluation.
 - Supports lists, tuples, numpy arrays, pandas dataframes and tensors as input data.
-- Provides batching, shuffling, and progress bar display during iteration.
+- Provides batching, shuffling and progress bar display during iteration.
 - Extensible for custom data loading strategies.
 
 ### Utilities
 - Tensor creation: `tensor(data, requires_grad=False, dtype=None)`, `zeros(*shape)`, `ones(*shape)`, `rand(*shape)`, `randn(*shape, xavier=False)`, `randint(low, high, *shape)` and their `_like` variants for matching shapes.
-- Tensor operations: `sum`, `min`, `max`, `argmax`, `mean`, `var`, `log`, `sqrt`, `exp`, `abs`, `concat`, `stack`, `where`, `clip`, `array(data, dtype=None)` for elementwise, reduction, and conversion operations.
+- Tensor operations: `sum`, `min`, `max`, `argmax`, `mean`, `var`, `log`, `sqrt`, `exp`, `abs`, `concat`, `stack`, `where`, `clip`, `array(data, dtype=None)` for elementwise, reduction and conversion operations.
 - Encoding: `one_hot(labels, num_classes=None)` for converting integer labels to one-hot encoding.
-- Autograd management: `with NoGrad()` context manager to disable gradient tracking in a block, `@no_grad` decorator to disable gradients for specific functions.
+- Autograd management: `with NoGrad()` context manager to disable gradient tracking in a block. `@no_grad` decorator to disable gradients for specific functions.
 
 ### Type Validation
-- `metaclass=ne.Typed` metaclass for enforcing type hints on class methods, properties and subclasses. Add `STRICT = True` in class definition to enforce strict type checking.
-- `@ne.Typed.validate` decorator for validating function arguments and return values based on type hints.
-- `ne.Typed.validation(True|False)` enable or disable type validation globally.
+- `metaclass=ne.Typed`: Metaclass for enforcing type hints on class methods, properties and subclasses. Add `STRICT = True` in class definition to enforce strict type checking.
+- `@ne.Typed.validate`: Decorator for validating function arguments and return values based on type hints.
+- `ne.Typed.validation(True|False)`: Enable or disable type validation globally.
 - Data type enum: `ne.DType.FLOAT32`, `ne.DType.INT8`, `ne.DType.UINT16`, etc.
 
 ### Extensibility
 NeuralEngine is designed for easy extension and customization:
-- **Custom Layers**: Create new layers by inheriting from the `Layer` base class and implementing the `forward(self, x)` method. You can add parameters, initialization logic, and custom computations as needed. All built-in layers follow this pattern, making it simple to add your own.
+- **Custom Layers**: Create new layers by inheriting from the `Layer` base class and implementing the `forward(self, x)` method. You can add parameters, initialization logic and custom computations as needed. All built-in layers follow this pattern, making it simple to add your own.
 - **Custom Losses**: Define new loss functions by inheriting from the `Loss` base class and implementing the `compute(self, z, y)` method. This allows you to integrate any custom loss logic with autograd support.
 - **Custom Optimizers**: Implement new optimization algorithms by inheriting from the `Optimizer` base class and providing your own `step(self)` method. You can manage optimizer state and parameter updates as required.
 - **Custom Metrics**: Add new metrics by inheriting from the `Metric` base class and implementing the `compute(self, z, y)` method. This allows you to track any performance measure with metric accumulation.
@@ -236,7 +237,7 @@ NeuralEngine is an open-source project, and I warmly welcome all kinds of contri
 
 ### How to Contribute
 - **Fork the repository** and create a new branch for your feature, fix, or documentation update.
-- **Keep it clean and consistent**: Try to follow the existing code style, naming conventions, and documentation patterns. Well-commented, readable code is always appreciated!
+- **Keep it clean and consistent**: Try to follow the existing code style, naming conventions and documentation patterns. Well-commented, readable code is always appreciated!
 - **Add tests** for new features or bug fixes if you can.
 - **Document your changes**: Update or add docstrings and README sections so others can easily understand your work.
 - **Open a pull request** describing what you've changed and why it's awesome.
@@ -247,7 +248,7 @@ NeuralEngine is an open-source project, and I warmly welcome all kinds of contri
 - Bug fixes and performance tweaks
 - Documentation updates and tutorials
 - Example scripts and notebooks
-- Feature requests, feedback, and ideas
+- Feature requests, feedback and ideas
 
 Every contribution is reviewed for quality and consistency, but don't worry—if you have questions or need help, just open an issue or start a discussion. I'm happy to help and love seeing new faces in the community!
 

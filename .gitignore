@@ -3,3 +3,4 @@ dist/
 build/
 neuralengine.egg-info/
 neuralengine/nn/__pycache__
+test.py

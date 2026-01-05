@@ -1,8 +1,7 @@
 import numpy as np
-from enum import Enum
 from functools import wraps
 from inspect import signature
-from typing import Any, get_origin, get_args, get_type_hints
+from typing import Any, Literal, get_origin, get_args, get_type_hints
 
 try:
     import cupy as cp
@@ -11,6 +10,10 @@ except ImportError:
     cp = None
     _has_cuda = False
     print("Cupy is not installed or no CUDA device is available. Falling back to NumPy.")
+
+
+xp = np # Backend array provider. Default to NumPy
+_current_device: Literal['cpu', 'cuda'] = 'cpu' # Default device
 
 
 class Typed(type):
@@ -102,34 +105,24 @@ class Typed(type):
         return all(cls._check(v, args[i % len(args)], strict) for i, v in enumerate(val))
 
 
-class Device(Enum):
-    """Device types supported by NeuralEngine."""
-    CPU = "cpu"
-    CUDA = "cuda"
-
-
-xp = np # Backend array provider. Default to NumPy
-_current_device: Device = Device.CPU # Default device is CPU
-
-
 @Typed.validate
-def set_device(device: Device) -> None:
+def set_device(device: Literal['cpu', 'cuda']) -> None:
     """Sets the current device for tensor operations.
-    @param device: The device to set, either Device.CPU or Device.CUDA
+    @param device: The device to set, either 'cpu' or 'cuda'
     """
     global xp, _current_device
-    if device == Device.CPU:
+    if device == 'cpu':
         xp = np
-    elif device == Device.CUDA:
+    elif device == 'cuda':
         if not _has_cuda:
             raise RuntimeError("Cupy is not installed or no CUDA device is available.")
         xp = cp
     _current_device = device
 
 
-def get_device() -> Device:
+def get_device() -> Literal['cpu', 'cuda']:
     """Returns the current device being used for tensor operations.
-    @return: The current device, either Device.CPU or Device.CUDA
+    @return: The current device, either 'cpu' or 'cuda'
     """
     return _current_device
 

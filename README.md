@@ -38,12 +38,12 @@ A framework/library for building and training neural networks in Python. NeuralE
 ## Features
 - Custom tensor operations (CPU/GPU support via NumPy and optional CuPy)
 - Configurable neural network layers (Linear, Flatten, etc.)
-- Built-in loss functions, metrics and optimizers
+- Built-in dataloaders, loss functions, metrics and optimizers
 - Model class for easy training and evaluation
 - Device management (CPU/CUDA)
 - Utilities for deep learning workflows
 - Autograd capabilities using dynamic computational graphs
-- Extensible design for custom layers, losses and optimizers
+- Extensible design for custom layers, losses, metrics and optimizers
 - Flexible data type configuration and runtime type validation
 
 ## Installation
@@ -70,8 +70,8 @@ pip install cupy-cuda12x
 ```python
 import neuralengine as ne
 
-# Set device (CPU or CUDA)
-ne.set_device(ne.Device.CUDA)
+# Set device ('cpu' or 'cuda')
+ne.set_device('cuda')
 
 # Load your dataset (example: MNIST)
 (x_train, y_train), (x_test, y_test) = load_mnist_data()
@@ -128,14 +128,13 @@ README.md
 NeuralEngine offers the following core capabilities:
 
 ### Device Management
-- `ne.set_device(device)`: Switch between CPU and GPU (CUDA) for computation.
+- `ne.set_device('cpu'|'cuda')`: Switch between CPU and GPU (CUDA) for computation.
 - `Tensor.to(device)`, `Layer.to(device)`: Move tensors and layers to specified device.
-- Device enum: `ne.Device.CPU`, `ne.Device.CUDA`.
 
 ### Tensors & Autograd
 - Custom tensor implementation supporting NumPy and CuPy backends.
 - Automatic differentiation (autograd) using dynamic computational graphs for backpropagation.
-- Supports gradients, parameter updates and custom operations.
+- Supports gradients, data types, parameter updates and custom operations.
 - Supported tensor operations:
   - Arithmetic: `+`, `-`, `*`, `/`, `**` (power)
   - Matrix multiplication: `@`
@@ -162,7 +161,7 @@ NeuralEngine offers the following core capabilities:
 - `ne.Dropout(prob=0.5)`: Dropout regularization for reducing overfitting.
 - `ne.Flatten()`: Flattens input tensors to 2D (batch, features).
 - `ne.Layer.dtype = ne.DType`: Get or set layer parameters data types.
-- `ne.Layer.freezed = True/False`: Freeze or unfreeze layer parameters during training.
+- `ne.Layer.freezed = True|False`: Freeze or unfreeze layer parameters during training.
 - All layers inherit from a common base and support extensibility for custom architectures.
 
 ### Activations

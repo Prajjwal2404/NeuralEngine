@@ -1,19 +1,13 @@
-from enum import Enum
-from ..config import Typed, DType, Device
+from typing import Literal
+from ..config import Typed, DType
 from ..tensor import Tensor
 from ..utils import *
-
-
-class Mode(Enum):
-    """Mode for layers: training or evaluation."""
-    TRAIN = 'train'
-    EVAL = 'eval'
 
 
 class Layer(metaclass=Typed):
     """Base class for all layers."""
     def __init__(self):
-        self._mode: Mode = Mode.TRAIN
+        self._mode: Literal['train', 'eval'] = 'train'
         self._in_size: tuple[int, ...] = None
         self._dtype: type = DType.FLOAT32
         self._freezed: bool = False
@@ -27,12 +21,12 @@ class Layer(metaclass=Typed):
         return self.forward(x, *args, **kwargs)
 
     @property
-    def mode(self) -> Mode:
-        """Current mode of the layer (TRAIN or EVAL)."""
+    def mode(self) -> Literal['train', 'eval']:
+        """Current mode of the layer ('train' or 'eval')."""
         return self._mode
     
     @mode.setter
-    def mode(self, mode: Mode) -> None:
+    def mode(self, mode: Literal['train', 'eval']) -> None:
         self._mode = mode
         for attr in self.__dict__.values():
             if isinstance(attr, Layer):
@@ -89,9 +83,9 @@ class Layer(metaclass=Typed):
                 parameters.append(attr)
         return parameters
 
-    def to(self, device: Device) -> None:
+    def to(self, device: Literal['cpu', 'cuda']) -> None:
         """Moves all parameters to the specified device (CPU or CUDA).
-        @param device: The device to move to, either CPU or CUDA
+        @param device: The device to move to, either 'cpu' or 'cuda'
         """
         for attr in self.__dict__.values():
             if isinstance(attr, (Layer, Tensor)):
@@ -357,7 +351,7 @@ class Dropout(Layer):
 
     def forward(self, x: Tensor) -> Tensor:
         # z = x · mask / (1 - p)
-        if self.mode == Mode.EVAL:
+        if self.mode == 'eval':
             return x
         
         mask = rand(*x.shape, dtype=self.dtype) < self.prob

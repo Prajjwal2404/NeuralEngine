@@ -3,7 +3,7 @@ import pickle as pkl
 from ..config import Typed, DType, get_device
 from ..tensor import Tensor, NoGrad
 from ..utils import concat
-from .layers import Layer, Mode, LSTM
+from .layers import Layer, LSTM
 from .loss import Loss
 from .metrics import Metric
 from .optim import Optimizer
@@ -130,7 +130,7 @@ class Model(metaclass=Typed):
         @param ckpt_interval: Interval (in epochs) to save checkpoints
         """
         for layer in self.layers:
-            layer.mode = Mode.TRAIN
+            layer.mode = 'train'
 
         for i in range(epochs):
 
@@ -175,7 +175,7 @@ class Model(metaclass=Typed):
         @return: Output tensor after evaluation
         """
         for layer in self.layers:
-            layer.mode = Mode.EVAL
+            layer.mode = 'eval'
 
         z = []
         for batch in dataloader:

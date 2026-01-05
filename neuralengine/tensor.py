@@ -1,4 +1,5 @@
 import neuralengine.config as cf
+from typing import Literal
 
 
 class Tensor(metaclass=cf.Typed):
@@ -215,14 +216,14 @@ class Tensor(metaclass=cf.Typed):
         if self.requires_grad:
             self.grad = cf.xp.zeros_like(self.data)
 
-    def to(self, device: cf.Device) -> 'Tensor':
+    def to(self, device: Literal['cpu', 'cuda']) -> 'Tensor':
         """Move the tensor to the specified device.
-        @param device: The device to move to, either CPU or CUDA
+        @param device: The device to move to, either 'cpu' or 'cuda'
         """
-        if device == cf.Device.CPU:
+        if device == 'cpu':
             if not cf._has_cuda or isinstance(self.data, cf.np.ndarray): return self
             transfer_fn = cf.cp.asnumpy
-        elif device == cf.Device.CUDA:
+        elif device == 'cuda':
             if not cf._has_cuda:
                 raise RuntimeError("Cupy is not installed or no CUDA device is available.")
             if isinstance(self.data, cf.cp.ndarray): return self

@@ -79,8 +79,8 @@ ne.set_device('cuda')
 y_train = ne.one_hot(y_train) # Preprocess if needed
 y_test = ne.one_hot(y_test)
 
-train_data = ne.DataLoader(x_train, y_train, batch_size=10000)
-test_data = ne.DataLoader(x_test, y_test, batch_size=10000, shuffle=False)
+train_data = ne.DataLoader(x_train, y_train, batch_size=10000, val_split=0.2)
+test_data = ne.DataLoader(x_test, y_test, batch_size=10000, shuffle=False, bar_info='Evaluation')
 
 # Build your model
 model = ne.Model(
@@ -97,7 +97,7 @@ model(
 )
 
 # Train and evaluate
-model.train(train_data, epochs=30)
+model.train(train_data, epochs=30, patience=3)
 result = model.eval(test_data)
 ```
 
@@ -196,17 +196,17 @@ NeuralEngine offers the following core capabilities:
 ### Model API
 - `ne.Model(input_size, optimizer, loss, metrics, dtype)`: Create a model specifying input size, optimizer, loss function, metrics and data type for model layers.
 - Add layers by calling the model instance: `model(layer1, layer2, ...)` or using `model.build(layer1, layer2, ...)`.
-- `model.train(dataloader, epochs=10, ckpt_interval=None)`: Train the model on dataset, with support for  metric/loss reporting and checkpointing per epoch.
-- `model.eval(dataloader)`: Evaluate the model on dataset, disables gradient tracking using `with ne.NoGrad():`, prints loss and metrics and returns output tensor.
+- `model.train(dataloader, epochs=10, patience=0, ckpt_interval=0)`: Train the model on dataset, with support for  metric/loss reporting, early stopping and checkpointing per epoch.
+- `model.eval(dataloader, validate=False)`: Evaluate the model on dataset or validation set, disables gradient tracking using `with ne.NoGrad():`, prints loss and metrics and returns output tensor.
 - Layers are set to training or evaluation mode automatically during `train` and `eval`.
 - `model.save(filename, weights_only=False)`: Save the model architecture or model parameters to a file.
 - `model.load_params(filepath)`: Load model parameters from a saved file.
 - `ne.Model.load_model(filepath)`: Load a model from a saved file.
 
 ### DataLoader
-- `ne.DataLoader(x, y, dtype=(None, None), batch_size=32, shuffle=True, random_seed=None, bar_size=30)`: Create a data loader for batching and shuffling datasets during training and evaluation.
+- `ne.DataLoader(x, y, dtype=(None, None), batch_size=32, val_split=0, shuffle=True, random_seed=None, bar_size=30, bar_info='')`: Create a data loader for batching, shuffling and splitting datasets during training and evaluation.
 - Supports lists, tuples, numpy arrays, pandas dataframes and tensors as input data.
-- Provides batching, shuffling and progress bar display during iteration.
+- Provides batching, shuffling, splitting (train/validation) and progress bar display during iteration.
 - Extensible for custom data loading strategies.
 
 ### Utilities

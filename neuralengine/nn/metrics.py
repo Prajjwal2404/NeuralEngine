@@ -18,9 +18,9 @@ class Metric(metaclass=Typed):
         y = y if isinstance(y, Tensor) else tensor(y)
         metric = self.compute(z, y, *args, **kwargs)
         
-        metric = {k: v.data.mean() for k, v in metric.items()}
-        self.metric_val = {k: self.metric_val.get(k, 0) + v for k, v in metric.items()}
-        self.count += 1
+        metric = {k: v.data.mean().item() for k, v in metric.items()} # Convert Tensor values to floats
+        self.metric_val = {k: self.metric_val.get(k, 0) + v for k, v in metric.items()} # Accumulate metric values
+        self.count += 1 # Sample count
         return self
     
     def __getitem__(self, key: str) -> float:
@@ -28,14 +28,14 @@ class Metric(metaclass=Typed):
         return self.metric_val.get(key, None)
 
     def __repr__(self) -> str:
-        """Returns a string representation of the metric with its value if computed."""
+        """String representation of the metric with its value if computed."""
         if self.count > 0:
             metric_str = ""
             for key, value in self.metric_val.items():
                 metric_str += f"{key}: {(value / self.count):.4f}, "
+            self.reset() # Reset after printing
             return metric_str[:-2]  # Remove trailing comma and space
-        else:
-            return "No metric computed yet."
+        else: return "No metric computed yet."
         
     def reset(self) -> None:
         """Resets the accumulated metric values and count."""
@@ -85,7 +85,7 @@ class R2(Metric):
 class ClassificationMetrics(Metric):
     """Classification metrics: Accuracy, Precision, Recall, F1 Score, Confusion Matrix."""
     def __init__(self, num_classes: int = None, acc: bool = True, prec: bool = False, \
-                rec: bool = False, f1: bool = False, eps: float = 1e-7):
+                 rec: bool = False, f1: bool = False, eps: float = 1e-7):
         """
         @param num_classes: Number of classes for classification tasks.
         @param acc: Whether to compute accuracy.

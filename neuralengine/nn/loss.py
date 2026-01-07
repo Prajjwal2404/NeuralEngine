@@ -18,16 +18,17 @@ class Loss(metaclass=Typed):
         y = y if isinstance(y, Tensor) else tensor(y)
         loss = self.compute(z, y, *args, **kwargs)
 
-        self.loss_val += loss.data.mean()
-        self.count += 1
+        self.loss_val += loss.data.mean().item() # Accumulate loss value as float
+        self.count += 1 # Sample count
         return loss
 
     def __repr__(self) -> str:
-        """Returns a string representation of the loss with its value if computed."""
+        """String representation of the loss with its value if computed."""
         if self.count > 0:
-            return f"{self.__class__.__name__}: {(self.loss_val / self.count):.4f}"
-        else:
-            return "No loss computed yet."
+            loss_val = self.loss_val / self.count
+            self.reset() # Reset after printing
+            return f"{self.__class__.__name__}: {loss_val:.4f}"
+        else: return "No loss computed yet."
         
     def reset(self) -> None:
         """Resets the accumulated loss value and count."""

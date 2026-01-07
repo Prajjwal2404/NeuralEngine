@@ -73,7 +73,7 @@ class SGD(Optimizer):
 class Adam(Optimizer):
     """Adam optimizer. Switches to RMSProp if only one beta is provided."""
     def __init__(self, lr: float = 1e-3, betas: tuple[float, float] | float = (0.9, 0.99), \
-                eps: float = 1e-7, reg: float = 0):
+                 eps: float = 1e-7, reg: float = 0):
         """
         @param lr: Learning rate
         @param betas: (beta_m, beta_v) for Adam, beta_v for RMSProp

@@ -6,7 +6,7 @@ from .tensor import *
 @cf.Typed.validate
 def tensor(data, requires_grad: bool = False, dtype: type = None) -> Tensor:
     """Creates a Tensor from data.
-    @param data: Input data
+    @param data: Input data (array-like)
     @param requires_grad: Track gradients
     @param dtype: Data type
     """

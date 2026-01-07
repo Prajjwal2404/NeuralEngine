@@ -30,7 +30,7 @@ class Layer(metaclass=Typed):
         self._mode = mode
         for attr in self.__dict__.values():
             if isinstance(attr, Layer):
-                attr.mode = mode
+                attr.mode = mode # Propagate mode to sub-layers
 
     @property
     def in_size(self) -> tuple[int, ...]:
@@ -57,7 +57,7 @@ class Layer(metaclass=Typed):
         self._dtype = dtype
         for attr in self.__dict__.values():
             if isinstance(attr, (Layer, Tensor)):
-                attr.dtype = dtype
+                attr.dtype = dtype # Propagate dtype to sub-layers and tensors
 
     @property
     def freezed(self) -> bool:
@@ -69,7 +69,7 @@ class Layer(metaclass=Typed):
         self._freezed = freeze
         for attr in self.__dict__.values():
             if isinstance(attr, Layer):
-                attr.freezed = freeze
+                attr.freezed = freeze # Propagate freeze to sub-layers
             elif isinstance(attr, Tensor):
                 attr.requires_grad = not freeze
 
@@ -78,9 +78,9 @@ class Layer(metaclass=Typed):
         parameters = []
         for attr in self.__dict__.values():
             if isinstance(attr, Layer):
-                parameters.extend(attr.parameters())
+                parameters.extend(attr.parameters()) # Collect parameters from sub-layers
             elif isinstance(attr, Tensor) and attr.requires_grad:
-                parameters.append(attr)
+                parameters.append(attr) # Collect trainable tensors
         return parameters
 
     def to(self, device: Literal['cpu', 'cuda']) -> None:
@@ -89,9 +89,9 @@ class Layer(metaclass=Typed):
         """
         for attr in self.__dict__.values():
             if isinstance(attr, (Layer, Tensor)):
-                attr.to(device)
+                attr.to(device) # Propagate device to sub-layers and tensors
 
-    def forward(self, x, *args, **kwargs) -> Tensor:
+    def forward(self, x: Tensor, *args, **kwargs) -> Tensor:
         """Performs the forward pass of the layer. To be implemented by subclasses."""
         raise NotImplementedError("forward() must be implemented in subclasses")
 
@@ -225,13 +225,13 @@ class MultiplicativeAttention(Layer):
     def _initialize_parameters(self) -> None:
         self.Wa = Linear(self.in_size[-1], self.out_size, bias=False)
 
-    def forward(self, h: Tensor, x: Tensor) -> Tensor:
-        # scores = (q.Wa.xᵗ) / √d_k
-        q = h.reshape(h.shape[0], 1, -1)
-        scores = (q @ self.Wa @ x.transpose(0, 2, 1)) / (self.in_size[-1] ** 0.5)
+    def forward(self, x: Tensor, y: Tensor) -> Tensor:
+        # scores = (q.Wa.kᵗ) / √d_k
+        q = x.reshape(x.shape[0], 1, -1)
+        scores = (q @ self.Wa @ y.transpose(0, 2, 1)) / (self.in_size[-1] ** 0.5)
         attn_weights = self.softmax(scores)
 
-        z = attn_weights @ x
+        z = attn_weights @ y
         z = z.reshape(z.shape[0], -1)
         return z
     

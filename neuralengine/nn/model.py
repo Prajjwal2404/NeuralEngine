@@ -15,7 +15,7 @@ class Model(metaclass=Typed):
     Allows for defining the model architecture, optimizer, loss function and metrics.
     The model can be trained and evaluated.
     """
-    def __init__(self, input_size: tuple[int, ...] | int, optimizer: Optimizer = None, loss: Loss = None, \
+    def __init__(self, input_size: tuple[int, ...] | int, optimizer: Optimizer, loss: Loss, \
                  metrics: list[Loss | Metric] = [], dtype: type = DType.FLOAT32):
         """
         @param input_size: Tuple or int, shape of input data samples (int if 1D).
@@ -123,20 +123,21 @@ class Model(metaclass=Typed):
             else: pkl.dump(self, file)
 
 
-    def train(self, dataloader: DataLoader, epochs: int = 10, ckpt_interval: int = None) -> None:
+    def train(self, dataloader: DataLoader, epochs: int = 10, patience: int = 0, ckpt_interval: int = 0) -> None:
         """Trains the model on data.
         @param dataloader: DataLoader instance providing training data.
         @param epochs: Number of epochs to train
+        @param patience: Early stopping patience (in epochs), saves best weights
         @param ckpt_interval: Interval (in epochs) to save checkpoints
         """
         for layer in self.layers:
             layer.mode = 'train'
 
-        for i in range(epochs):
+        if patience: best = 1e999
+        for epoch in dataloader(epochs):
 
             for batch in dataloader:
                 x, y = batch
-
                 # Forward pass
                 for layer in self.layers:
                     x = layer(x)
@@ -154,33 +155,41 @@ class Model(metaclass=Typed):
                 self.optimizer.step()
                 self.optimizer.reset_grad() # Reset gradients
 
-                print(dataloader, f'Epoch {i + 1}/{epochs}', sep=', ', end='', flush=True) # Show progress bar
+                print(dataloader, end='', flush=True) # Show progress bar
 
-            output_strs = [f": (Loss) {self.loss}", *self.metrics]
+            output_strs = [f"(Train Loss) {self.loss}", *self.metrics] # Prepare epoch summary
+
+            # Validation step
+            if dataloader.val_split:
+                val_loss = self.eval(dataloader, validate=True) # Evaluate on validation set
+                for layer in self.layers: layer.mode = 'train'
+
+                if patience: # Early stopping check
+                    if val_loss < best: 
+                        best, wait = val_loss, 0
+                        self.save("checkpoints/best_model.pkl", weights_only=True)
+                    elif (wait := wait + 1) > patience:
+                        return print(f"Early stopping at epoch {epoch}. Best model saved.")
 
             # Save checkpoint
-            if ckpt_interval and (i + 1) % ckpt_interval == 0:
-                self.save(f"checkpoints/model_epoch_{i + 1}.pkl", weights_only=True)
+            if ckpt_interval and epoch % ckpt_interval == 0:
+                self.save(f"checkpoints/epoch_{epoch}.pkl", weights_only=True)
                 output_strs.append("Checkpoint saved")
             print(*output_strs, sep=', ', flush=True) # Print epoch summary
 
-            # Reset loss and metrics for next epoch
-            self.loss.reset()
-            for metric in self.metrics: metric.reset()
 
-
-    def eval(self, dataloader: DataLoader) -> Tensor:
+    def eval(self, dataloader: DataLoader, validate: bool = False) -> Tensor | float:
         """Evaluates the model on data.
         @param dataloader: DataLoader instance providing evaluation data.
-        @return: Output tensor after evaluation
+        @param validate: If True, evaluates on validation set; else on test set.
+        @return: Output tensor after evaluation or validation loss if validate is True.
         """
         for layer in self.layers:
             layer.mode = 'eval'
 
-        z = []
+        if not validate: z = []
         for batch in dataloader:
             x, y = batch
-
             # Forward pass
             with NoGrad():
                 for layer in self.layers:
@@ -188,14 +197,20 @@ class Model(metaclass=Typed):
                     # For stacked LSTM, pass outputs accordingly
                     if isinstance(layer, LSTM): x = x[layer.use_output[0]]
 
-                z.append(x) # Accumulate outputs
                 self.loss(x, y) # Compute loss
 
-            # Compute metrics
-            for metric in self.metrics:
-                metric(x, y)
+            if not validate:
+                # Compute metrics
+                for metric in self.metrics:
+                    metric(x, y)
+                z.append(x) # Accumulate outputs
 
-            print(dataloader, 'Evaluation', sep=', ', end='', flush=True) # Show progress bar
+            print(dataloader, end='', flush=True) # Show progress bar
 
-        print(f": (Loss) {self.loss}", *self.metrics, sep=', ', flush=True) # Print evaluation summary
-        return concat(*z, axis=0)
+        if validate:
+            loss_val = self.loss.loss_val / self.loss.count
+            print(f"(Val Loss) {self.loss}", end=', ', flush=True) # Print validation summary
+            return loss_val # Return validation loss
+
+        print(f"(Eval Loss) {self.loss}", *self.metrics, sep=', ') # Print evaluation summary
+        return concat(*z, axis=0) # Combine outputs and return

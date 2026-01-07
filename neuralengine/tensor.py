@@ -1,12 +1,12 @@
 import neuralengine.config as cf
-from typing import Literal
+from typing import Any, Literal
 
 
 class Tensor(metaclass=cf.Typed):
     """Core Tensor class for autograd and computation."""
-    def __init__(self, data, requires_grad: bool = False, dtype: type = None, _operation = None):
+    def __init__(self, data: Any, requires_grad: bool = False, dtype: type = None, _operation = None):
         """
-        @param data: Input data for the tensor.
+        @param data: Input data for the tensor (array-like).
         @param requires_grad: Whether to track gradients for this tensor.
         @param dtype: Data type of the tensor.
         """
@@ -19,7 +19,7 @@ class Tensor(metaclass=cf.Typed):
             self.grad = cf.xp.zeros_like(self.data)
             self._children = []
 
-        if hasattr(_operation, '__self__'):
+        if hasattr(_operation, '__self__'): # Register this tensor as a child of its parents
             for attr in _operation.__self__.__dict__.values():
                 if isinstance(attr, Tensor) and attr.requires_grad:
                     attr._children.append(self)
@@ -763,9 +763,9 @@ class NoGrad:
 
 
 @cf.Typed.validate
-def array(data, dtype: type = None):
+def array(data: Any, dtype: type = None):
     """Convert data to a numpy array if it is not already.
-    @param data: Input data to convert.
+    @param data: Input data to convert (array-like).
     @param dtype: Desired data type of the output array.
     """
     if isinstance(data, Tensor):
@@ -775,7 +775,7 @@ def array(data, dtype: type = None):
     return cf.xp.asarray(data, dtype=dtype)
 
 
-def _safe_limit(data, op_type: str):
+def _safe_limit(data: Any, op_type: str):
     """Clips tensor data to safe limits for numerical stability."""
     dtype = data.dtype
     if cf.xp.issubdtype(dtype, cf.DType.INT):
@@ -795,7 +795,6 @@ def _safe_limit(data, op_type: str):
 
 def _reshape_grad(grad, input_shape, out_grad_shape, matmul=False):
     """Reshape the gradient to match the input shape."""
-
     grad_dim = len(out_grad_shape)
     in_dim = len(input_shape)
     for _ in range(grad_dim - in_dim):
@@ -807,5 +806,4 @@ def _reshape_grad(grad, input_shape, out_grad_shape, matmul=False):
     for n, dim in enumerate(input_shape):
         if dim == 1:
             grad = grad.sum(axis=n, keepdims=True)
-
     return grad

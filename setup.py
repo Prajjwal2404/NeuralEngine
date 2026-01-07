@@ -11,7 +11,7 @@ def read_requirements():
 
 setup(
     name="NeuralEngine",
-    version="0.3.3",
+    version="0.3.5",
     author="Prajjwal Pratap Shah",
     author_email="prajjwalpratapshah@outlook.com",
     maintainer="Prajjwal Pratap Shah",

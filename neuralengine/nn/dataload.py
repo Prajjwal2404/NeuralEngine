@@ -33,6 +33,7 @@ class DataLoader(metaclass=cf.Typed):
         self.bar_size = bar_size
         self.bar_info = bar_info
         self.curr_batch = 0 # Initialize batch counter
+        if shuffle: self.rng.shuffle(self.indices) # Initial shuffle
 
     def __call__(self, epochs: int = 10) -> range:
         """Sets the number of epochs for progress tracking.
@@ -56,7 +57,11 @@ class DataLoader(metaclass=cf.Typed):
         """Returns the iterator object."""
         if self.curr_batch == 0:
             self.limit = len(self) # Reset for training set
-            if self.shuffle: self.rng.shuffle(self.indices)
+
+            if self.shuffle:
+                split = self.batch_size * self.limit # Val split index
+                self.rng.shuffle(self.indices[:split]) # Shuffle train set
+                self.rng.shuffle(self.indices[split:]) # Shuffle val set  
         return self
 
     def __next__(self) -> tuple[Tensor, Tensor]:

@@ -234,16 +234,41 @@ def where(condition, tensor: Tensor, value: float | Tensor) -> Tensor:
     return MaskedFill(tensor, condition, value)()
 
 @cf.Typed.validate
-def clip(tensor: Tensor, min: float, max: float) -> Tensor:
+def clip(tensor: Tensor, minimum: float, maximum: float) -> Tensor:
     """Clips tensor values to [min, max].
     @param tensor: Input tensor
     @param min: Minimum value
     @param max: Maximum value
     """
     # min/max clipping
-    tensor = tensor.masked_fill(tensor < min, min)
-    tensor = tensor.masked_fill(tensor > max, max)
+    tensor = tensor.masked_fill(tensor < minimum, minimum)
+    tensor = tensor.masked_fill(tensor > maximum, maximum)
     return tensor
+
+@cf.Typed.validate
+def standardize(tensor: Tensor, axis: int = -1, eps: float = 1e-7) -> Tensor:
+    """Standardizes tensor over axis.
+    @param tensor: Input tensor
+    @param axis: Axis to standardize
+    @param eps: Small value for numerical stability
+    """
+    # x = (x - μ) / σ
+    mu = mean(tensor, axis=axis, keepdims=True)
+    variance = var(tensor, axis=axis, keepdims=True)
+    std = sqrt(variance + eps)
+    return (tensor - mu) / std
+
+@cf.Typed.validate
+def normalize(tensor: Tensor, axis: int = -1, eps: float = 1e-7) -> Tensor:
+    """Normalizes tensor over axis.
+    @param tensor: Input tensor
+    @param axis: Axis to normalize
+    @param eps: Small value for numerical stability
+    """
+    # x = (x - min) / (max - min)
+    minimum = min(tensor, axis=axis, keepdims=True)
+    maximum = max(tensor, axis=axis, keepdims=True)
+    return (tensor - minimum) / (maximum - minimum + eps)
 
 @cf.Typed.validate
 def one_hot(labels, num_classes: int = None, dtype: type[cf.DType.INT] = cf.DType.INT32) -> Tensor:

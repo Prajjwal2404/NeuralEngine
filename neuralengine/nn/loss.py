@@ -110,9 +110,9 @@ class GaussianNLL(Loss):
 
     def compute(self, z: Tensor, y: Tensor) -> Tensor:
         # NLL = 1/2 (log(σ²) + ((y - μ)²) / σ²)
-        mu, log_var = z[..., 0], z[..., 1]
-        var = exp(log_var) + self.eps
-        loss = 0.5 * (log_var + ((y - mu) ** 2) / var)
+        mu, log_var = z[..., 0::2], z[..., 1::2]
+        variance = exp(log_var) + self.eps
+        loss = 0.5 * (log_var + ((y - mu) ** 2) / variance)
         return mean(loss, axis=-1, keepdims=False)
 
 
@@ -126,7 +126,7 @@ class KLDivergence(Loss):
         self.eps = eps
 
     def compute(self, z: Tensor, y: Tensor) -> Tensor:
-        # KL(y||z) = y.log(y / z)
+        # KL(y||z) = Σ y.log(y / z)
         z = where(z > 0, z, self.eps)
         y = where(y > 0, y, self.eps)
         loss = y * log(y / z)

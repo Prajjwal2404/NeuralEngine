@@ -76,11 +76,13 @@ ne.set_device('cuda')
 # Load your dataset (example: MNIST)
 (x_train, y_train), (x_test, y_test) = load_mnist_data()
 
-y_train = ne.one_hot(y_train) # Preprocess if needed
-y_test = ne.one_hot(y_test)
+# Preprocess data
+x_train, x_test = ne.tensor(x_train), ne.tensor(x_test)
+x_train, x_test = ne.normalize(x_train), ne.normalize(x_test)
+y_train, y_test = ne.one_hot(y_train), ne.one_hot(y_test)
 
 train_data = ne.DataLoader(x_train, y_train, batch_size=10000, val_split=0.2)
-test_data = ne.DataLoader(x_test, y_test, batch_size=10000, shuffle=False, bar_info='Evaluation')
+test_data = ne.DataLoader(x_test, y_test, batch_size=10000, shuffle=False)
 
 # Build your model
 model = ne.Model(
@@ -212,7 +214,7 @@ NeuralEngine offers the following core capabilities:
 ### Utilities
 - Tensor creation: `tensor(data, requires_grad=False, dtype=None)`, `zeros(*shape)`, `ones(*shape)`, `rand(*shape)`, `randn(*shape, xavier=False)`, `randint(low, high, *shape)` and their `_like` variants for matching shapes.
 - Tensor operations: `sum`, `min`, `max`, `argmax`, `mean`, `var`, `log`, `sqrt`, `exp`, `abs`, `concat`, `stack`, `where`, `clip`, `array(data, dtype=None)` for elementwise, reduction and conversion operations.
-- Encoding: `one_hot(labels, num_classes=None)` for converting integer labels to one-hot encoding.
+- Preprocessing: `standardize(tensor)`, `normalize(tensor)`, `one_hot(labels)` for data preprocessing.
 - Autograd management: `with NoGrad()` context manager to disable gradient tracking in a block. `@no_grad` decorator to disable gradients for specific functions.
 
 ### Type Validation

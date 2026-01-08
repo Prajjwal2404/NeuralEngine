@@ -104,8 +104,7 @@ class ClassificationMetrics(Metric):
 
     @no_grad
     def compute(self, z: Tensor, y: Tensor) -> dict[str, Tensor]:
-        if self.num_classes is None:
-            self.num_classes = y.shape[-1]
+        if self.num_classes is None: self.num_classes = y.shape[-1]
         # Convert logits to class indices and one-hot encode
         z_idx = argmax(z, axis=-1)
         z_onehot = one_hot(z_idx, self.num_classes)
@@ -150,8 +149,8 @@ class Perplexity(Metric):
 
     @no_grad
     def compute(self, z: Tensor, y: Tensor) -> dict[str, Tensor]:
-        # Perplexity = exp(-1/N Σ log(p(y|x)))
+        # Perplexity = exp(-1/N Σ y.log(p))
         z = clip(z, self.eps, 1 - self.eps)
-        log_likelihood = -sum(y * log(z), axis=-1)
-        perplexity = exp(mean(log_likelihood, axis=-1))
+        cross_entropy = sum(-y * log(z), axis=-1)
+        perplexity = exp(mean(cross_entropy, axis=-1))
         return {"Perplexity": perplexity}

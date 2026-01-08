@@ -6,7 +6,7 @@ from ..utils import *
 class Loss(metaclass=Typed):
     """Base class for all loss functions."""
     def __init__(self):
-        self.loss_val: float = 0.0
+        self.loss: float = 0.0
         self.count: int = 0
 
     def __call__(self, z, y, *args, **kwargs) -> Tensor:
@@ -18,21 +18,21 @@ class Loss(metaclass=Typed):
         y = y if isinstance(y, Tensor) else tensor(y)
         loss = self.compute(z, y, *args, **kwargs)
 
-        self.loss_val += loss.data.mean().item() # Accumulate loss value as float
+        self.loss += loss.data.mean().item() # Accumulate loss value as float
         self.count += 1 # Sample count
         return loss
 
     def __repr__(self) -> str:
         """String representation of the loss with its value if computed."""
         if self.count > 0:
-            loss_val = self.loss_val / self.count
+            loss = self.loss / self.count
             self.reset() # Reset after printing
-            return f"{self.__class__.__name__}: {loss_val:.4f}"
+            return f"{self.__class__.__name__}: {loss:.4f}"
         else: return "No loss computed yet."
         
     def reset(self) -> None:
         """Resets the accumulated loss value and count."""
-        self.loss_val = 0.0
+        self.loss = 0.0
         self.count = 0
         
     def compute(self, z: Tensor, y: Tensor, *args, **kwargs) -> Tensor:

@@ -6,7 +6,7 @@ from ..utils import *
 class Metric(metaclass=Typed):
     """Base class for all metrics."""
     def __init__(self):
-        self.metric_val: dict[str, float] = {}
+        self.metric: dict[str, float] = {}
         self.count: int = 0
 
     def __call__(self, z, y, *args, **kwargs) -> 'Metric':
@@ -19,19 +19,19 @@ class Metric(metaclass=Typed):
         metric = self.compute(z, y, *args, **kwargs)
         
         metric = {k: v.data.mean().item() for k, v in metric.items()} # Convert Tensor values to floats
-        self.metric_val = {k: self.metric_val.get(k, 0) + v for k, v in metric.items()} # Accumulate metric values
+        self.metric = {k: self.metric.get(k, 0) + v for k, v in metric.items()} # Accumulate metric values
         self.count += 1 # Sample count
         return self
     
     def __getitem__(self, key: str) -> float:
         """Allows access to individual metric values by key."""
-        return self.metric_val.get(key, None)
+        return self.metric.get(key, None)
 
     def __repr__(self) -> str:
         """String representation of the metric with its value if computed."""
         if self.count > 0:
             metric_str = ""
-            for key, value in self.metric_val.items():
+            for key, value in self.metric.items():
                 metric_str += f"{key}: {(value / self.count):.4f}, "
             self.reset() # Reset after printing
             return metric_str[:-2]  # Remove trailing comma and space
@@ -39,7 +39,7 @@ class Metric(metaclass=Typed):
         
     def reset(self) -> None:
         """Resets the accumulated metric values and count."""
-        self.metric_val = {}
+        self.metric = {}
         self.count = 0
         
     @no_grad

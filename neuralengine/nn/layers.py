@@ -159,16 +159,16 @@ class LSTM(Layer):
         self.tanh = Tanh()
 
     def _initialize_parameters(self) -> None:
+        if self.attention:
+            self.attention.in_size = self.enc_size if self.enc_size else self.out_size
+            
         # LSTM gate weights and biases
-        self.ctx_size = self.enc_size if self.enc_size else self.out_size if self.attention else 0
+        self.ctx_size = self.attention.in_size[-1] if self.attention else 0
         concat_size = self.out_size + self.in_size[-1] + self.ctx_size
         self.Lf = Linear(self.out_size, concat_size, bias=self.has_bias, activation=self.sigmoid)
         self.Li = Linear(self.out_size, concat_size, bias=self.has_bias, activation=self.sigmoid)
         self.Lc = Linear(self.out_size, concat_size, bias=self.has_bias, activation=self.tanh)
         self.Lo = Linear(self.out_size, concat_size, bias=self.has_bias, activation=self.sigmoid)
-
-        if self.attention:
-            self.attention.in_size = self.enc_size if self.enc_size else self.out_size
 
     def forward(self, x: Tensor, c: Tensor = None, h: Tensor = None, enc_seq: Tensor = None) -> list[Tensor]:
         # LSTM forward pass
@@ -178,12 +178,8 @@ class LSTM(Layer):
         output = self.lstm_loop(x, range(self.n_timesteps or x.shape[-2]), c, h, enc_seq)
         if self.bidirectional:
             output_rev = self.lstm_loop(x, range(self.n_timesteps or (x.shape[-2] - 1), -1, -1), c, h, enc_seq)
-
-            combinedOutput = []
-            for o, r in zip(output, output_rev):
-                # Concatenate outputs from both directions
-                combinedOutput.append(concat(o, r, axis=-1))
-            output = combinedOutput
+            # Concatenate outputs from both directions
+            output = [concat(o, r, axis=-1) for o, r in zip(output, output_rev)]
 
         return output
 
@@ -286,24 +282,20 @@ class MultiHeadAttention(Layer):
 
 class Embedding(Layer):
     """Embedding layer for mapping indices to dense vectors."""
-    def __init__(self, embed_size: int, *vocab_size: int, timesteps: int = None):
+    def __init__(self, embed_size: int, vocab_size: int, timesteps: int = None):
         """
         @param embed_size: Size of the embedding vectors.
         @param vocab_size: Number of unique tokens in the vocabulary.
         @param timesteps: Maximum number of timesteps in the input sequence (for positional encoding).
         """
         super().__init__()
-        self.timesteps = timesteps
         self.out_size = embed_size
-        if vocab_size: self.in_size = vocab_size
-
+        self.in_size = vocab_size
+        self.timesteps = timesteps
+        self.TE = Linear(embed_size, vocab_size, bias=False) # Token Embedding matrix
         if self.timesteps:
             # Positional encoding for n timesteps
-            self.PE = Linear(self.out_size, self.timesteps, bias=False)
-
-    def _initialize_parameters(self) -> None:
-        # Token Embedding matrix
-        self.TE = Linear(self.out_size, self.in_size, bias=False)
+            self.PE = Linear(embed_size, timesteps, bias=False)
 
     def forward(self, x: Tensor) -> Tensor:
         # z = TE[x]
@@ -326,11 +318,11 @@ class LayerNorm(Layer):
         if num_feat: self.in_size = num_feat
 
     def _initialize_parameters(self) -> None:    
-        self.gamma = ones(*self.in_size, requires_grad=True, dtype=self.dtype)
-        self.beta = zeros(*self.in_size, requires_grad=True, dtype=self.dtype)
+        self.gamma = ones(self.in_size[-1], requires_grad=True, dtype=self.dtype)
+        self.beta = zeros(self.in_size[-1], requires_grad=True, dtype=self.dtype)
 
     def forward(self, x: Tensor) -> Tensor:
-        # z = (x - μ) / (σ + ε)
+        # z = (x - μ) / σ
         mean = x.mean(axis=-1, keepdims=True)
         var = x.var(axis=-1, keepdims=True)
         z = (x - mean) / sqrt(var + self.eps)
@@ -350,10 +342,8 @@ class Dropout(Layer):
         self.prob = prob
 
     def forward(self, x: Tensor) -> Tensor:
+        if self.mode == 'eval': return x
         # z = x · mask / (1 - p)
-        if self.mode == 'eval':
-            return x
-        
         mask = rand(*x.shape, dtype=self.dtype) < self.prob
         z = x.masked_fill(mask, 0)
         z /= (1 - self.prob)

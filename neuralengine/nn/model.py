@@ -208,9 +208,9 @@ class Model(metaclass=Typed):
             print(dataloader, end='', flush=True) # Show progress bar
 
         if validate:
-            loss_val = self.loss.loss_val / self.loss.count
+            val_loss = self.loss.loss / self.loss.count
             print(f"(Val Loss) {self.loss}", end=', ', flush=True) # Print validation summary
-            return loss_val # Return validation loss
+            return val_loss # Return validation loss
 
         print(f"(Eval Loss) {self.loss}", *self.metrics, sep=', ') # Print evaluation summary
         return concat(*z, axis=0) # Combine outputs and return

@@ -80,7 +80,7 @@ class Typed(type):
 
         # Handle Special Forms
         if 'Union' in str(origin): return any(cls._check(val, a, strict) for a in args)
-        if 'Literal' in str(origin): return val in args
+        if origin is Literal: return val in args
 
         if not strict: # Non-strict mode relaxations
             if hint is float and isinstance(val, int): return True

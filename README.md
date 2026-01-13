@@ -31,9 +31,10 @@ A framework/library for building and training neural networks in Python. NeuralE
 - [Example Usage](#example-usage)
 - [Project Structure](#project-structure)
 - [Capabilities & Documentation](#capabilities--documentation)
-- [Contribution Guide](#contribution-guide)
+- [Contribution](#contribution)
 - [License](#license)
 - [Attribution](#attribution)
+- [Disclaimer](#disclaimer)
 
 ## Features
 - Custom tensor operations (CPU/GPU support via NumPy and optional CuPy)
@@ -232,33 +233,16 @@ NeuralEngine is designed for easy extension and customization:
 - **Custom DataLoaders**: Extend the `DataLoader` class to create specialized data loading strategies. Override the `__getitem__` method to define how batches are constructed.
 - All core components are modular and can be replaced or extended for research or production use.
 
-## Contribution Guide
-
-NeuralEngine is an open-source project, and I warmly welcome all kinds of contributions whether it's code, documentation, bug reports, feature ideas, or sharing cool examples. If you want to help make NeuralEngine better, you're in the right place!
-
-### How to Contribute
-- **Fork the repository** and create a new branch for your feature, fix, or documentation update.
-- **Keep it clean and consistent**: Try to follow the existing code style, naming conventions and documentation patterns. Well-commented, readable code is always appreciated!
-- **Add tests** for new features or bug fixes if you can.
-- **Document your changes**: Update or add docstrings and README sections so others can easily understand your work.
-- **Open a pull request** describing what you've changed and why it's awesome.
-
-### What Can You Contribute?
-- New layers, loss functions, optimizers, metrics, or utility functions
-- Improvements to existing components
-- Bug fixes and performance tweaks
-- Documentation updates and tutorials
-- Example scripts and notebooks
-- Feature requests, feedback and ideas
-
-Every contribution is reviewed for quality and consistency, but don't worry—if you have questions or need help, just open an issue or start a discussion. I'm happy to help and love seeing new faces in the community!
-
-Thanks for making NeuralEngine better, together! 🚀
+## Contribution
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) file for details on how to set up your development environment and submit pull requests.
 
 ## License
-MIT License with attribution clause. See LICENSE file for details.
+MIT License with attribution clause. See [LICENSE](LICENSE) file for details.
 
 ## Attribution
 If you use this project, please credit the original developer: Prajjwal Pratap Shah.
 
 Special thanks to the Autograd Framework From Scratch project by Eduardo Leitão da Cunha Opice Leão, which served as a reference for tensor operations and autograd implementations.
+
+## Disclaimer
+*NeuralEngine is an independent, open-source project developed for educational and research purposes. All product names, logos and brands are property of their respective owners. Use of these names does not imply any affiliation with or endorsement by them.*

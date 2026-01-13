@@ -133,7 +133,6 @@ class Model(metaclass=Typed):
         for layer in self.layers:
             layer.mode = 'train'
 
-        if patience: best = 1e999
         for epoch in dataloader(epochs):
 
             for batch in dataloader:
@@ -165,7 +164,7 @@ class Model(metaclass=Typed):
                 for layer in self.layers: layer.mode = 'train'
 
                 if patience: # Early stopping check
-                    if val_loss < best: 
+                    if epoch == 1 or val_loss < best:
                         best, wait = val_loss, 0
                         self.save("checkpoints/best_model.pkl", weights_only=True)
                     elif (wait := wait + 1) > patience:

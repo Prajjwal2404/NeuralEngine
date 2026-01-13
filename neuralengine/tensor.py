@@ -252,11 +252,11 @@ class Add:
         # ∂(a + b)/∂a = 1, ∂(a + b)/∂b = 1
         if self.a.requires_grad:
             grad = self.result.grad
-            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # rescale grad to match a
+            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # reshape grad to match a
             self.a._backward(self.result)
         if self.b.requires_grad:
             grad = self.result.grad
-            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # rescale grad to match b
+            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # reshape grad to match b
             self.b._backward(self.result)
 
 
@@ -276,11 +276,11 @@ class Multiply:
         # ∂(a·b)/∂a = b, ∂(a·b)/∂b = a
         if self.a.requires_grad:
             grad = self.result.grad * self.b.data
-            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # rescale grad to match a
+            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # reshape grad to match a
             self.a._backward(self.result)
         if self.b.requires_grad:
             grad = self.result.grad * self.a.data
-            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # rescale grad to match b
+            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # reshape grad to match b
             self.b._backward(self.result)
 
 
@@ -300,11 +300,11 @@ class Divide:
         # ∂(a/b)/∂a = 1/b, ∂(a/b)/∂b = -a/b²
         if self.a.requires_grad:
             grad = self.result.grad / self.b.data
-            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # rescale grad to match a
+            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # reshape grad to match a
             self.a._backward(self.result)
         if self.b.requires_grad:
             grad = -self.result.grad * (self.result.data / self.b.data) # -a/b² = -(a/b)·(1/b) = -result·(1/b)
-            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # rescale grad to match b
+            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # reshape grad to match b
             self.b._backward(self.result)
 
 
@@ -324,11 +324,11 @@ class Power:
         # ∂(a^b)/∂a = b·a^{b-1}, ∂(a^b)/∂b = a^b·ln(a)
         if self.base.requires_grad:
             grad = self.result.grad * (self.exp.data * (self.base.data ** (self.exp.data - 1)))
-            self.base.grad += _reshape_grad(grad, self.base.shape, grad.shape) # rescale grad to match base
+            self.base.grad += _reshape_grad(grad, self.base.shape, grad.shape) # reshape grad to match base
             self.base._backward(self.result)
         if self.exp.requires_grad:
             grad = self.result.grad * (self.base.data ** self.exp.data) * cf.xp.log(self.base.data)
-            self.exp.grad += _reshape_grad(grad, self.exp.shape, grad.shape) # rescale grad to match exponent
+            self.exp.grad += _reshape_grad(grad, self.exp.shape, grad.shape) # reshape grad to match exponent
             self.exp._backward(self.result)
 
 
@@ -348,11 +348,11 @@ class MatrixMul:
         # ∂(A·B)/∂A = dL/dZ · Bᵗ, ∂(A·B)/∂B = Aᵗ · dL/dZ
         if self.a.requires_grad:
             grad = self.result.grad @ self.b.data.swapaxes(-1, -2)
-            self.a.grad += _reshape_grad(grad, self.a.shape, grad.shape, matmul=True) # rescale grad to match a
+            self.a.grad += _reshape_grad(grad, self.a.shape, grad.shape, matmul=True) # reshape grad to match a
             self.a._backward(self.result)
         if self.b.requires_grad:
             grad = self.a.data.swapaxes(-1, -2) @ self.result.grad
-            self.b.grad += _reshape_grad(grad, self.b.shape, grad.shape, matmul=True) # rescale grad to match b
+            self.b.grad += _reshape_grad(grad, self.b.shape, grad.shape, matmul=True) # reshape grad to match b
             self.b._backward(self.result)
 
 

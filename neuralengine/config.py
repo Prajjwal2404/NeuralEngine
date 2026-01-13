@@ -58,10 +58,10 @@ class Typed(type):
                 hint = hints.get(name, param.annotation)
                 if hint is param.empty: continue
                 # Normalize *args / **kwargs
-                val = val if param.kind == param.VAR_POSITIONAL else \
+                norm_val = val if param.kind == param.VAR_POSITIONAL else \
                     val.values() if param.kind == param.VAR_KEYWORD else (val,)    
                   
-                if not all(cls._check(v, hint, strict) for v in val):
+                if not all(cls._check(v, hint, strict) for v in norm_val):
                     raise TypeError(f"Argument '{name}' expected {hint}, got {type(val).__name__}")
 
             result = func(*args, **kwargs)

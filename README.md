@@ -9,15 +9,12 @@
         <img src="https://img.shields.io/github/contributors/Prajjwal2404/NeuralEngine" /></a>
     <a href="https://pypi.org/project/NeuralEngine" alt="PyPI">
         <img src="https://img.shields.io/pypi/v/NeuralEngine?color=brightgreen&label=PyPI" /></a>
-    <a href="https://www.python.org/">
-        <img src="https://img.shields.io/badge/language-Python-blue">
-    </a>
-    <a href="mailto:prajjwalpratapshah@outlook.com">
-        <img src="https://img.shields.io/badge/-Email-red?style=flat-square&logo=gmail&logoColor=white">
-    </a>
-    <a href="https://www.linkedin.com/in/prajjwal2404">
-        <img src="https://img.shields.io/badge/-Linkedin-blue?style=flat-square&logo=linkedin">
-    </a>
+    <a href="https://www.python.org" alt="Language">
+        <img src="https://img.shields.io/badge/language-Python-blue"></a>
+    <a href="mailto:prajjwalpratapshah@outlook.com" alt="Email">
+        <img src="https://img.shields.io/badge/-Email-red?style=flat&logo=gmail&logoColor=white"></a>
+    <a href="https://www.linkedin.com/in/prajjwal2404" alt="LinkedIn">
+        <img src="https://img.shields.io/badge/LinkedIn-blue?style=flat"></a>
 </p>
 
 

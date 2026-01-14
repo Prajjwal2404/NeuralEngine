@@ -55,7 +55,8 @@ class DataLoader(metaclass=cf.Typed):
 
     def __iter__(self) -> 'DataLoader':
         """Returns the iterator object."""
-        if self.curr_batch == 0: self.limit = len(self) # Train set limit
+        if self.curr_batch == 0:
+            self.limit = len(self) # Train set limit
         return self
 
     def __next__(self) -> tuple[Tensor, Tensor]:
@@ -74,7 +75,6 @@ class DataLoader(metaclass=cf.Typed):
             if self.shuffle:
                 split = self.batch_size * self.limit # Val split index
                 self.rng.shuffle(self.indices[:split]) # Shuffle train set
-                self.rng.shuffle(self.indices[split:]) # Shuffle val set
             if hasattr(self, 'epochs'): self.current_epoch += 1
             raise StopIteration
 

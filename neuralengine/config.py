@@ -24,13 +24,13 @@ class Typed(type):
     def __new__(cls, name, bases, dct):
         strict = dct.get('STRICT', False)
 
-        for attr, value in dct.items(): # Only validate public methods and properties
+        for attr, val in dct.items(): # Only validate public methods and properties
             if not attr.startswith('_') or attr in {'__init__', '__call__'}:
-                if isinstance(value, property):
-                    methods = (cls.validate(m, strict) for m in (value.fget, value.fset, value.fdel))
-                    dct[attr] = property(*methods, doc=value.__doc__)
-                elif callable(value):
-                    dct[attr] = cls.validate(value, strict)
+                if isinstance(val, property):
+                    methods = (m and cls.validate(m, strict) for m in (val.fget, val.fset, val.fdel))
+                    dct[attr] = property(*methods, doc=val.__doc__)
+                elif callable(val):
+                    dct[attr] = cls.validate(val, strict)
         return super().__new__(cls, name, bases, dct)
     
     @classmethod
@@ -41,12 +41,13 @@ class Typed(type):
         cls._enabled = enabled
     
     @classmethod
-    def validate(cls, func, strict: bool = False):
+    def validate(cls, func = None, strict: bool = False):
         """Decorator to validate function arguments based on type hints.
         @param func: The function to validate.
         @param strict: Whether to enforce strict type checking.
         """
-        if func is None or not cls._enabled: return func
+        if func is None: return lambda f: cls.validate(f, strict)
+        if not cls._enabled or getattr(func, '_validated', False): return func
         sig = signature(func)
         
         @wraps(func)
@@ -62,13 +63,15 @@ class Typed(type):
                     val.values() if param.kind == param.VAR_KEYWORD else (val,)    
                   
                 if not all(cls._check(v, hint, strict) for v in norm_val):
-                    raise TypeError(f"Argument '{name}' expected {hint}, got {type(val).__name__}")
+                    raise TypeError(f"Argument '{name}' expected {hint}, got {type(val)}")
 
             result = func(*args, **kwargs)
             ret_hint = hints.get('return', sig.return_annotation)
             if ret_hint is not sig.empty and not cls._check(result, ret_hint, strict):
-                raise TypeError(f"Return value expected {ret_hint}, got {type(result).__name__}")
+                raise TypeError(f"Return value expected {ret_hint}, got {type(result)}")
             return result
+        
+        wrapper._validated = True
         return wrapper
 
     @classmethod

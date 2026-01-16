@@ -217,7 +217,7 @@ NeuralEngine offers the following core capabilities:
 
 ### Type Validation
 - `metaclass=ne.Typed`: Metaclass for enforcing type hints on class methods, properties and subclasses. Add `STRICT = True` in class definition to enforce strict type checking.
-- `@ne.Typed.validate`: Decorator for validating function arguments and return values based on type hints.
+- `@ne.Typed.validate(strict=True|False)`: Decorator for validating function arguments and return values based on type hints. Decorator has higher precedence over metaclass.
 - `ne.Typed.validation(True|False)`: Enable or disable type validation globally.
 - Data type enum: `ne.DType.FLOAT32`, `ne.DType.INT8`, `ne.DType.UINT16`, etc.
 

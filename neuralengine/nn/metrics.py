@@ -23,7 +23,7 @@ class Metric(metaclass=Typed):
         self.count += 1 # Sample count
         return self
     
-    def __getitem__(self, key: str) -> float:
+    def __getitem__(self, key: str) -> float | None:
         """Allows access to individual metric values by key."""
         return self.metric.get(key, None)
 
@@ -104,12 +104,14 @@ class ClassificationMetrics(Metric):
 
     @no_grad
     def compute(self, z: Tensor, y: Tensor) -> dict[str, Tensor]:
-        if self.num_classes is None: self.num_classes = y.shape[-1]
-        # Convert logits to class indices and one-hot encode
-        z_idx = argmax(z, axis=-1)
+        self.num_classes = self.num_classes or y.shape[-1]
+
+        # Convert predictions to class indices and encode (one-hot)
+        z += randn_like(z) * self.eps # Add small noise to break ties
+        z_idx = where(max(z, keepdims=True) == z)[-1]
         z_onehot = one_hot(z_idx, self.num_classes)
 
-        cm = y.transpose() @ z_onehot # Confusion matrix
+        cm = y.transpose() @ z_onehot # Confusion Matrix
         d_indices = array(range(self.num_classes)) # Diagonal elements
         TP = cm[d_indices, d_indices] # True Positives
         FP = sum(cm, axis=0) - TP # False Positives

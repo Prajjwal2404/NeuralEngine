@@ -126,6 +126,13 @@ def randint_like(tensor: Tensor, low: int, high: int, requires_grad: bool = None
     return randint(low, high, *shape, requires_grad=requires_grad, dtype=dtype)
 
 @cf.Typed.validate
+def abs(tensor: Tensor) -> Tensor:
+    """Elementwise absolute value.
+    @param tensor: Input tensor
+    """
+    return Absolute(tensor)()
+
+@cf.Typed.validate
 def sum(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     """Sum over axis.
     @param tensor: Input tensor
@@ -133,15 +140,6 @@ def sum(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     @param keepdims: Keep reduced dims
     """
     return tensor.sum(axis=axis, keepdims=keepdims)
-
-@cf.Typed.validate
-def min(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
-    """Min over axis.
-    @param tensor: Input tensor
-    @param axis: Axis to min
-    @param keepdims: Keep reduced dims
-    """
-    return tensor.min(axis=axis, keepdims=keepdims)
 
 @cf.Typed.validate
 def max(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
@@ -153,14 +151,13 @@ def max(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     return tensor.max(axis=axis, keepdims=keepdims)
 
 @cf.Typed.validate
-def argmax(tensor: Tensor, axis: int = -1, dtype: type[cf.DType.INT] = None) -> Tensor:
-    """Argmax over axis.
+def min(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
+    """Min over axis.
     @param tensor: Input tensor
-    @param axis: Axis to argmax
-    @param dtype: Data type (integer type)
+    @param axis: Axis to min
+    @param keepdims: Keep reduced dims
     """
-    indices = cf.xp.argmax(tensor.data, axis=axis)
-    return Tensor(indices, requires_grad=False, dtype=dtype)
+    return tensor.min(axis=axis, keepdims=keepdims)
 
 @cf.Typed.validate
 def mean(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
@@ -202,13 +199,6 @@ def exp(tensor: Tensor) -> Tensor:
     return Exponential(tensor)()
 
 @cf.Typed.validate
-def abs(tensor: Tensor) -> Tensor:
-    """Elementwise absolute value.
-    @param tensor: Input tensor
-    """
-    return Absolute(tensor)()
-
-@cf.Typed.validate
 def concat(*tensors: Tensor, axis: int = 0) -> Tensor:
     """Concatenates tensors along axis.
     @param tensors: Tensors to concatenate
@@ -225,20 +215,22 @@ def stack(*tensors: Tensor, axis: int = 0) -> Tensor:
     return Stack(tensors, axis)()
 
 @cf.Typed.validate
-def where(condition, tensor: Tensor, value: float | Tensor) -> Tensor:
+def where(condition, tensor: Tensor = None, value: float | Tensor = 0) -> Tensor:
     """Elementwise selection: if condition then tensor else value.
     @param condition: Boolean mask
-    @param tensor: Tensor to select
+    @param tensor: Tensor to select, if None returns indices
     @param value: Value to fill where condition is False
     """
+    if tensor is None:
+        return Tensor(cf.xp.where(condition))
     return MaskedFill(tensor, condition, value)()
 
 @cf.Typed.validate
 def clip(tensor: Tensor, minimum: float, maximum: float) -> Tensor:
     """Clips tensor values to [min, max].
     @param tensor: Input tensor
-    @param min: Minimum value
-    @param max: Maximum value
+    @param minimum: Minimum value
+    @param maximum: Maximum value
     """
     # min/max clipping
     tensor = tensor.masked_fill(tensor < minimum, minimum)

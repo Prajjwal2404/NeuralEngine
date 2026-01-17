@@ -105,15 +105,15 @@ class ClassificationMetrics(Metric):
     @no_grad
     def compute(self, z: Tensor, y: Tensor) -> dict[str, Tensor]:
         self.num_classes = self.num_classes or y.shape[-1]
+        c_indices = array(range(self.num_classes)) # Class indices
 
         # Convert predictions to class indices and encode (one-hot)
-        z += randn_like(z) * self.eps # Add small noise to break ties
+        z -= c_indices * (self.eps / self.num_classes) # Break ties
         z_idx = where(max(z, keepdims=True) == z)[-1]
         z_onehot = one_hot(z_idx, self.num_classes)
 
         cm = y.transpose() @ z_onehot # Confusion Matrix
-        d_indices = array(range(self.num_classes)) # Diagonal elements
-        TP = cm[d_indices, d_indices] # True Positives
+        TP = cm[c_indices, c_indices] # True Positives
         FP = sum(cm, axis=0) - TP # False Positives
         FN = sum(cm, axis=1) - TP # False Negatives
 

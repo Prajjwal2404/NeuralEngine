@@ -108,8 +108,7 @@ class ClassificationMetrics(Metric):
         c_indices = array(range(self.num_classes)) # Class indices
 
         # Convert predictions to class indices and encode (one-hot)
-        z -= c_indices * (self.eps / self.num_classes) # Break ties
-        z_idx = where(max(z, keepdims=True) == z)[-1]
+        z_idx = z.data.argmax(axis=-1)
         z_onehot = one_hot(z_idx, self.num_classes)
 
         cm = y.transpose() @ z_onehot # Confusion Matrix

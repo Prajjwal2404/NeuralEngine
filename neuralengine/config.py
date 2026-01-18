@@ -130,6 +130,13 @@ def get_device() -> Literal['cpu', 'cuda']:
     return _current_device
 
 
+def has_cuda() -> bool:
+    """Checks if a CUDA device is available.
+    @return: True if CUDA is available, False otherwise
+    """
+    return _has_cuda
+
+
 class DType():
     """Data types supported by NeuralEngine."""
     FLOAT = xp.floating

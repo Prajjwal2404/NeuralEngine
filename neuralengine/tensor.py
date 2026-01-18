@@ -221,10 +221,10 @@ class Tensor(metaclass=cf.Typed):
         @param device: The device to move to, either 'cpu' or 'cuda'
         """
         if device == 'cpu':
-            if not cf._has_cuda or isinstance(self.data, cf.np.ndarray): return self
+            if not cf.has_cuda() or isinstance(self.data, cf.np.ndarray): return self
             transfer_fn = cf.cp.asnumpy
         elif device == 'cuda':
-            if not cf._has_cuda:
+            if not cf.has_cuda():
                 raise RuntimeError("Cupy is not installed or no CUDA device is available.")
             if isinstance(self.data, cf.cp.ndarray): return self
             transfer_fn = cf.cp.asarray

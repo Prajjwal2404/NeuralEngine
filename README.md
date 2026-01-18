@@ -130,6 +130,7 @@ NeuralEngine offers the following core capabilities:
 ### Device Management
 - `ne.set_device('cpu'|'cuda')`: Switch between CPU and GPU (CUDA) for computation.
 - `Tensor.to(device)`, `Layer.to(device)`: Move tensors and layers to specified device.
+- `ne.get_device()`, `ne.has_cuda()`: Get current device and CUDA availability.
 
 ### Tensors & Autograd
 - Custom tensor implementation supporting NumPy and CuPy backends.
@@ -211,7 +212,7 @@ NeuralEngine offers the following core capabilities:
 
 ### Utilities
 - Tensor creation: `tensor(data, requires_grad=False, dtype=None)`, `zeros(*shape)`, `ones(*shape)`, `rand(*shape)`, `randn(*shape, xavier=False)`, `randint(low, high, *shape)` and their `_like` variants for matching shapes.
-- Tensor operations: `abs`, `sum`, `max`, `min`, `mean`, `var`, `log`, `sqrt`, `exp`, `concat`, `stack`, `where`, `clip`, `array(data, dtype=None)` for elementwise, reduction and conversion operations.
+- Tensor operations: `log`, `sqrt`, `exp`, `abs`, `sum`, `max`, `min`, `mean`, `var`, `concat`, `stack`, `where`, `clip`, `array(data, dtype=None)` for elementwise, reduction and conversion operations.
 - Preprocessing: `standardize(tensor)`, `normalize(tensor)`, `one_hot(labels)` for data preprocessing.
 - Autograd management: `with NoGrad()` context manager to disable gradient tracking in a block. `@no_grad` decorator to disable gradients for specific functions.
 

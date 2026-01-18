@@ -126,6 +126,27 @@ def randint_like(tensor: Tensor, low: int, high: int, requires_grad: bool = None
     return randint(low, high, *shape, requires_grad=requires_grad, dtype=dtype)
 
 @cf.Typed.validate
+def log(tensor: Tensor) -> Tensor:
+    """Elementwise natural logarithm.
+    @param tensor: Input tensor
+    """
+    return Logarithm(tensor)()
+
+@cf.Typed.validate
+def sqrt(tensor: Tensor) -> Tensor:
+    """Elementwise square root.
+    @param tensor: Input tensor
+    """
+    return SquareRoot(tensor)()
+
+@cf.Typed.validate
+def exp(tensor: Tensor) -> Tensor:
+    """Elementwise exponential.
+    @param tensor: Input tensor
+    """
+    return Exponential(tensor)()
+
+@cf.Typed.validate
 def abs(tensor: Tensor) -> Tensor:
     """Elementwise absolute value.
     @param tensor: Input tensor
@@ -178,27 +199,6 @@ def var(tensor: Tensor, axis: int = -1, keepdims: bool = False) -> Tensor:
     return tensor.var(axis=axis, keepdims=keepdims)
 
 @cf.Typed.validate
-def log(tensor: Tensor) -> Tensor:
-    """Elementwise natural logarithm.
-    @param tensor: Input tensor
-    """
-    return Logarithm(tensor)()
-
-@cf.Typed.validate
-def sqrt(tensor: Tensor) -> Tensor:
-    """Elementwise square root.
-    @param tensor: Input tensor
-    """
-    return SquareRoot(tensor)()
-
-@cf.Typed.validate
-def exp(tensor: Tensor) -> Tensor:
-    """Elementwise exponential.
-    @param tensor: Input tensor
-    """
-    return Exponential(tensor)()
-
-@cf.Typed.validate
 def concat(*tensors: Tensor, axis: int = 0) -> Tensor:
     """Concatenates tensors along axis.
     @param tensors: Tensors to concatenate
@@ -217,7 +217,7 @@ def stack(*tensors: Tensor, axis: int = 0) -> Tensor:
 @cf.Typed.validate
 def where(condition, tensor: Tensor = None, value: float | Tensor = 0) -> Tensor:
     """Elementwise selection: if condition then tensor else value.
-    @param condition: Boolean mask
+    @param condition: Boolean mask (array-like)
     @param tensor: Tensor to select, if None returns indices
     @param value: Value to fill where condition is False
     """
@@ -265,7 +265,7 @@ def normalize(tensor: Tensor, axis: int = -1, eps: float = 1e-7) -> Tensor:
 @cf.Typed.validate
 def one_hot(labels, num_classes: int = None, dtype: type[cf.DType.INT] = cf.DType.INT32) -> Tensor:
     """Converts integer labels to one-hot encoding.
-    @param labels: Integer labels
+    @param labels: Integer labels (array-like)
     @param num_classes: Number of classes
     @param dtype: Data type (integer type)
     """

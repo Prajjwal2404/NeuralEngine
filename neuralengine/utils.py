@@ -77,7 +77,7 @@ def zeros_like(tensor: Tensor, requires_grad: bool = None, dtype: type = None) -
     @param dtype: Data type
     """
     shape = tensor.shape
-    requires_grad=requires_grad if requires_grad else tensor.requires_grad
+    if requires_grad is None: requires_grad = tensor.requires_grad
     return zeros(*shape, requires_grad=requires_grad, dtype=dtype)
 
 def ones_like(tensor: Tensor, requires_grad: bool = None, dtype: type = None) -> Tensor:
@@ -87,7 +87,7 @@ def ones_like(tensor: Tensor, requires_grad: bool = None, dtype: type = None) ->
     @param dtype: Data type
     """
     shape = tensor.shape
-    requires_grad=requires_grad if requires_grad else tensor.requires_grad
+    if requires_grad is None: requires_grad = tensor.requires_grad
     return ones(*shape, requires_grad=requires_grad, dtype=dtype)
 
 def rand_like(tensor: Tensor, requires_grad: bool = None, dtype: type = None) -> Tensor:
@@ -97,7 +97,7 @@ def rand_like(tensor: Tensor, requires_grad: bool = None, dtype: type = None) ->
     @param dtype: Data type
     """
     shape = tensor.shape
-    requires_grad=requires_grad if requires_grad else tensor.requires_grad
+    if requires_grad is None: requires_grad = tensor.requires_grad
     return rand(*shape, requires_grad=requires_grad, dtype=dtype)
 
 def randn_like(tensor: Tensor, xavier: bool = False, requires_grad: bool = None, \
@@ -109,7 +109,7 @@ def randn_like(tensor: Tensor, xavier: bool = False, requires_grad: bool = None,
     @param dtype: Data type
     """
     shape = tensor.shape
-    requires_grad=requires_grad if requires_grad else tensor.requires_grad
+    if requires_grad is None: requires_grad = tensor.requires_grad
     return randn(*shape, xavier=xavier, requires_grad=requires_grad, dtype=dtype)
 
 def randint_like(tensor: Tensor, low: int, high: int, requires_grad: bool = None, \
@@ -122,7 +122,7 @@ def randint_like(tensor: Tensor, low: int, high: int, requires_grad: bool = None
     @param dtype: Data type (integer type)
     """
     shape = tensor.shape
-    requires_grad=requires_grad if requires_grad else tensor.requires_grad
+    if requires_grad is None: requires_grad = tensor.requires_grad
     return randint(low, high, *shape, requires_grad=requires_grad, dtype=dtype)
 
 @cf.Typed.validate

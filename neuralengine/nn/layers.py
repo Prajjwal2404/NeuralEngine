@@ -160,7 +160,7 @@ class LSTM(Layer):
 
     def _initialize_parameters(self) -> None:
         if self.attention:
-            self.attention.in_size = self.enc_size if self.enc_size else self.out_size
+            self.attention.in_size = self.enc_size or self.out_size
             
         # LSTM gate weights and biases
         self.ctx_size = self.attention.in_size[-1] if self.attention else 0
@@ -172,8 +172,8 @@ class LSTM(Layer):
 
     def forward(self, x: Tensor, c: Tensor = None, h: Tensor = None, enc_seq: Tensor = None) -> list[Tensor]:
         # LSTM forward pass
-        c = c if c else zeros(x.shape[0], self.out_size)
-        h = h if h else zeros(x.shape[0], self.out_size + self.ctx_size)
+        c = c or zeros(x.shape[0], self.out_size)
+        h = h or zeros(x.shape[0], self.out_size + self.ctx_size)
 
         output = self.lstm_loop(x, range(self.n_timesteps or x.shape[-2]), c, h, enc_seq)
         if self.bidirectional:
@@ -198,7 +198,7 @@ class LSTM(Layer):
             if self.return_seq or (self.attention and not enc_seq): seq_output.append(h)
 
             if self.attention:
-                context = self.attention(h, enc_seq if enc_seq else stack(*seq_output, axis=1))
+                context = self.attention(h, enc_seq or stack(*seq_output, axis=1))
                 h = concat(h, context, axis=-1)
 
         output = [c, h] if self.return_state else [h]
@@ -246,7 +246,7 @@ class MultiHeadAttention(Layer):
 
     def _initialize_parameters(self) -> None:
         self.out_size = self.in_size[-1]
-        self.head_dim = self.out_size // self.num_heads # Dimension of each head's output
+        self.head_dim = self.out_size // self.num_heads # Dimension per head
         # Initialize parameters for combined Q, K, V projections
         self.Wq = Linear(self.out_size, self.out_size, bias=False)
         self.Wk = Linear(self.out_size, self.out_size, bias=False)
@@ -260,8 +260,8 @@ class MultiHeadAttention(Layer):
         seq_len_kv = y.shape[1] if y else seq_len_q
 
         q = x @ self.Wq
-        k = y @ self.Wk if y else x @ self.Wk
-        v = y @ self.Wv if y else x @ self.Wv
+        k = (y or x) @ self.Wk
+        v = (y or x) @ self.Wv
 
         # Result: (batch_size, num_heads, seq_len, head_dim)
         q = q.reshape(batch_size, seq_len_q, self.num_heads, self.head_dim).transpose(0, 2, 1, 3)

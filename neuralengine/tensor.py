@@ -13,7 +13,7 @@ class Tensor(metaclass=cf.Typed):
         self.data = array(data, dtype=dtype)
         self.requires_grad = requires_grad if autograd_enabled else False
         self.shape = self.data.shape
-        self._dtype = dtype if dtype else self.data.dtype.type
+        self._dtype = dtype or self.data.dtype.type
         self._operation = _operation
         if self.requires_grad:
             self.grad = cf.xp.zeros_like(self.data)
@@ -577,7 +577,7 @@ class Variance:
 class Transpose:
     def __init__(self, tensor, axes=None):
         self.tensor = tensor if isinstance(tensor, Tensor) else Tensor(tensor)
-        self.axes = tuple(range(len(self.tensor.shape) - 1, -1, -1)) if not axes else axes
+        self.axes = tuple(range(len(self.tensor.shape) - 1, -1, -1)) if axes is None else axes
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad

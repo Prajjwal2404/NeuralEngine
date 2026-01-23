@@ -1,5 +1,5 @@
 import neuralengine.config as cf
-from typing import Any, Literal
+from typing import Any, Literal, Iterator
 
 
 class Tensor(metaclass=cf.Typed):
@@ -20,7 +20,7 @@ class Tensor(metaclass=cf.Typed):
             self._children = []
 
         if hasattr(_operation, '__self__'): # Register this tensor as a child of its parents
-            for attr in _operation.__self__.__dict__.values():
+            for attr in vars(_operation.__self__).values():
                 if isinstance(attr, Tensor) and attr.requires_grad:
                     attr._children.append(self)
                 elif isinstance(attr, list):
@@ -29,6 +29,10 @@ class Tensor(metaclass=cf.Typed):
     def __repr__(self) -> str:
         """String representation of the tensor."""
         return f"Tensor(data={self.data}, dtype={self.dtype.__name__}, requires_grad={self.requires_grad})"
+    
+    def __iter__(self) -> Iterator:
+        """Iterator over the tensor data."""
+        return iter(self.data)
 
     def __add__(self, other):
         """New = A + B"""

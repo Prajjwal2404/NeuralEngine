@@ -28,7 +28,7 @@ class Layer(metaclass=Typed):
     @mode.setter
     def mode(self, mode: Literal['train', 'eval']) -> None:
         self._mode = mode
-        for attr in self.__dict__.values():
+        for attr in vars(self).values():
             if isinstance(attr, Layer):
                 attr.mode = mode # Propagate mode to sub-layers
 
@@ -55,7 +55,7 @@ class Layer(metaclass=Typed):
     @dtype.setter
     def dtype(self, dtype: type) -> None:
         self._dtype = dtype
-        for attr in self.__dict__.values():
+        for attr in vars(self).values():
             if isinstance(attr, (Layer, Tensor)):
                 attr.dtype = dtype # Propagate dtype to sub-layers and tensors
 
@@ -67,7 +67,7 @@ class Layer(metaclass=Typed):
     @freezed.setter
     def freezed(self, freeze: bool) -> None:
         self._freezed = freeze
-        for attr in self.__dict__.values():
+        for attr in vars(self).values():
             if isinstance(attr, Layer):
                 attr.freezed = freeze # Propagate freeze to sub-layers
             elif isinstance(attr, Tensor):
@@ -76,7 +76,7 @@ class Layer(metaclass=Typed):
     def parameters(self) -> list[Tensor]:
         """Collects all trainable parameters for the layer."""
         parameters = []
-        for attr in self.__dict__.values():
+        for attr in vars(self).values():
             if isinstance(attr, Layer):
                 parameters.extend(attr.parameters()) # Collect parameters from sub-layers
             elif isinstance(attr, Tensor) and attr.requires_grad:
@@ -87,7 +87,7 @@ class Layer(metaclass=Typed):
         """Moves all parameters to the specified device (CPU or CUDA).
         @param device: The device to move to, either 'cpu' or 'cuda'
         """
-        for attr in self.__dict__.values():
+        for attr in vars(self).values():
             if isinstance(attr, (Layer, Tensor)):
                 attr.to(device) # Propagate device to sub-layers and tensors
 

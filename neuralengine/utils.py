@@ -270,8 +270,7 @@ def one_hot(labels, num_classes: int = None, dtype: type[cf.DType.INT] = cf.DTyp
     @param dtype: Data type (integer type)
     """
     labels = array(labels, dtype=dtype)
-    if num_classes is None:
-        num_classes = int(cf.xp.max(labels) + 1)
+    num_classes = num_classes or int(cf.xp.max(labels) + 1)
     # one-hot encoding: eye(num_classes)[labels]
     encoded = cf.xp.eye(num_classes)[labels]
     return Tensor(encoded, dtype=dtype)

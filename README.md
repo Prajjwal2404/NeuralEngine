@@ -135,7 +135,7 @@ NeuralEngine offers the following core capabilities:
 ### Tensors & Autograd
 - Custom tensor implementation supporting NumPy and CuPy backends.
 - Automatic differentiation (autograd) using dynamic computational graphs for backpropagation.
-- Supports gradients, data types, parameter updates and custom operations.
+- Supports gradients, data types, iteration, parameter updates and custom operations.
 - Supported tensor operations:
   - Arithmetic: `+`, `-`, `*`, `/`, `**` (power)
   - Matrix multiplication: `@`
@@ -220,7 +220,7 @@ NeuralEngine offers the following core capabilities:
 - `metaclass=ne.Typed`: Metaclass for enforcing type hints on class methods, properties and subclasses. Add `STRICT = True` in class definition to enforce strict type checking.
 - `@ne.Typed.validate(strict=True|False)`: Decorator for validating function arguments and return values based on type hints. Decorator has higher precedence over metaclass.
 - `ne.Typed.validation(True|False)`: Enable or disable type validation globally.
-- Data type enum: `ne.DType.FLOAT32`, `ne.DType.INT8`, `ne.DType.UINT16`, etc.
+- Data type enum: `ne.DType.FLOAT32`, `ne.DType.INT8`, `ne.DType.UINT16`, etc. Supports iteration and key-based access.
 
 ### Extensibility
 NeuralEngine is designed for easy extension and customization:

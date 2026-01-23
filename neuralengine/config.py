@@ -1,7 +1,7 @@
 import numpy as np
 from functools import wraps
 from inspect import signature
-from typing import Any, Literal, get_origin, get_args, get_type_hints
+from typing import Any, Literal, Iterator, get_origin, get_args, get_type_hints
 
 try:
     import cupy as cp
@@ -137,7 +137,7 @@ def has_cuda() -> bool:
     return _has_cuda
 
 
-class DType():
+class DType:
     """Data types supported by NeuralEngine."""
     FLOAT = xp.floating
     FLOAT16 = xp.float16
@@ -154,3 +154,15 @@ class DType():
     UINT32 = xp.uint32
     UINT64 = xp.uint64
     BOOL = xp.bool_
+
+    def __class_getitem__(cls, key: str) -> type:
+        """Allows access to data types by key."""
+        return getattr(cls, key)
+
+    def __iter__(self) -> Iterator[type]:
+        """Iterator over the data types."""
+        return iter(getattr(self, attr) for attr in dir(self) if attr.isupper())
+    
+    def __repr__(self) -> str:
+        """String representation of the DType class."""
+        return f"DType({', '.join(attr for attr in dir(self) if attr.isupper())})"

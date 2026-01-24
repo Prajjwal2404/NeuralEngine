@@ -27,7 +27,7 @@ class Loss(metaclass=Typed):
         if self.count > 0:
             loss = self.loss / self.count
             self.reset() # Reset after printing
-            return f"{self.__class__.__name__}: {loss:.4f}"
+            return f"{type(self).__name__}: {loss:.4f}"
         else: return "No loss computed yet."
         
     def reset(self) -> None:

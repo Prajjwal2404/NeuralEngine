@@ -203,6 +203,7 @@ NeuralEngine offers the following core capabilities:
 - `model.save(filename, weights_only=False)`: Save the model architecture or model parameters to a file.
 - `model.load_params(filepath)`: Load model parameters from a saved file.
 - `ne.Model.load_model(filepath)`: Load a model from a saved file.
+- `print(model)`: Print a summary of the model architecture and configuration.
 
 ### DataLoader
 - `ne.DataLoader(x, y, dtype=(None, None), batch_size=32, val_split=0, shuffle=True, random_seed=None, bar_size=30, bar_info='')`: Create a data loader for batching, shuffling and splitting datasets during training and evaluation.
@@ -220,7 +221,7 @@ NeuralEngine offers the following core capabilities:
 - `metaclass=ne.Typed`: Metaclass for enforcing type hints on class methods, properties and subclasses. Add `STRICT = True` in class definition to enforce strict type checking.
 - `@ne.Typed.validate(strict=True|False)`: Decorator for validating function arguments and return values based on type hints. Decorator has higher precedence over metaclass.
 - `ne.Typed.validation(True|False)`: Enable or disable type validation globally.
-- Data type enum: `ne.DType.FLOAT32`, `ne.DType.INT8`, `ne.DType.UINT16`, etc. Supports iteration and key-based access.
+- Data type enum: `ne.DType.FLOAT32`, `ne.DType.INT8`, `ne.DType.UINT16`, etc. Supports iteration and key access.
 
 ### Extensibility
 NeuralEngine is designed for easy extension and customization:

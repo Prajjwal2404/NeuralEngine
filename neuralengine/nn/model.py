@@ -38,6 +38,20 @@ class Model(metaclass=Typed):
         self.build(*layers)
 
 
+    def __repr__(self) -> str:
+        """String representation of the Model."""
+        def name(*obj):
+            return [type(o).__name__ for o in obj]
+        
+        return (
+            f"Model(layers={name(*self.layers)}, "
+            f"optimizer={name(self.optimizer)[0]}, "
+            f"loss={name(self.loss)[0]}, "
+            f"metrics={name(*self.metrics)}, "
+            f"dtype={self.dtype.__name__})"
+        )
+
+
     def build(self, *layers: Layer) -> None:
         """Builds the model by adding layers.
         @param layers: Variable number of Layer instances to add to the model.

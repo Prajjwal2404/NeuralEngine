@@ -164,5 +164,5 @@ class DType:
         return iter(getattr(self, attr) for attr in dir(self) if attr.isupper())
     
     def __repr__(self) -> str:
-        """String representation of the DType class."""
+        """String representation of the DType types."""
         return f"DType({', '.join(attr for attr in dir(self) if attr.isupper())})"

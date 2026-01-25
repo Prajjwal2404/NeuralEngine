@@ -17,14 +17,12 @@ class Tensor(metaclass=cf.Typed):
         self._operation = _operation
         if self.requires_grad:
             self.grad = cf.xp.zeros_like(self.data)
-            self._children = []
+            self._children = 0 # Number of dependent child tensors
 
-        if hasattr(_operation, '__self__'): # Register this tensor as a child of its parents
+        if hasattr(_operation, '__self__'): # Add this tensor as a child to its parents
             for attr in vars(_operation.__self__).values():
-                if isinstance(attr, Tensor) and attr.requires_grad:
-                    attr._children.append(self)
-                elif isinstance(attr, list):
-                    [t._children.append(self) for t in attr if hasattr(t, '_children')]
+                for t in (attr if isinstance(attr, list) else [attr]):
+                    if hasattr(t, '_children'): t._children += 1
 
     def __repr__(self) -> str:
         """String representation of the tensor."""
@@ -200,14 +198,11 @@ class Tensor(metaclass=cf.Typed):
             if hasattr(self, attr):
                 setattr(self, attr, array(getattr(self, attr), dtype=dtype)) 
 
-    def _backward(self, child) -> None:
+    def _backward(self) -> None:
         """internal method to handle backward pass."""
-        for i, c in enumerate(self._children):
-            if c is child:
-                del self._children[i]
-                break
-        if self.requires_grad and not self._children:
-            if self._operation: self._operation()
+        self._children -= 1 # One child tensor processed
+        if not self._children and self._operation:
+            self._operation() # Propagate to parents
 
     def backward(self) -> None:
         """Compute gradients for the entire computation graph."""
@@ -257,11 +252,11 @@ class Add:
         if self.a.requires_grad:
             grad = self.result.grad
             self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # reshape grad to match a
-            self.a._backward(self.result)
+            self.a._backward()
         if self.b.requires_grad:
             grad = self.result.grad
             self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # reshape grad to match b
-            self.b._backward(self.result)
+            self.b._backward()
 
 
 class Multiply:
@@ -281,11 +276,11 @@ class Multiply:
         if self.a.requires_grad:
             grad = self.result.grad * self.b.data
             self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # reshape grad to match a
-            self.a._backward(self.result)
+            self.a._backward()
         if self.b.requires_grad:
             grad = self.result.grad * self.a.data
             self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # reshape grad to match b
-            self.b._backward(self.result)
+            self.b._backward()
 
 
 class Divide:
@@ -305,11 +300,11 @@ class Divide:
         if self.a.requires_grad:
             grad = self.result.grad / self.b.data
             self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # reshape grad to match a
-            self.a._backward(self.result)
+            self.a._backward()
         if self.b.requires_grad:
             grad = -self.result.grad * (self.result.data / self.b.data) # -a/b² = -(a/b)·(1/b) = -result·(1/b)
             self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # reshape grad to match b
-            self.b._backward(self.result)
+            self.b._backward()
 
 
 class Power:
@@ -329,11 +324,11 @@ class Power:
         if self.base.requires_grad:
             grad = self.result.grad * (self.exp.data * (self.base.data ** (self.exp.data - 1)))
             self.base.grad += _reshape_grad(grad, self.base.shape, grad.shape) # reshape grad to match base
-            self.base._backward(self.result)
+            self.base._backward()
         if self.exp.requires_grad:
             grad = self.result.grad * (self.base.data ** self.exp.data) * cf.xp.log(self.base.data)
             self.exp.grad += _reshape_grad(grad, self.exp.shape, grad.shape) # reshape grad to match exponent
-            self.exp._backward(self.result)
+            self.exp._backward()
 
 
 class MatrixMul:
@@ -353,11 +348,11 @@ class MatrixMul:
         if self.a.requires_grad:
             grad = self.result.grad @ self.b.data.swapaxes(-1, -2)
             self.a.grad += _reshape_grad(grad, self.a.shape, grad.shape, matmul=True) # reshape grad to match a
-            self.a._backward(self.result)
+            self.a._backward()
         if self.b.requires_grad:
             grad = self.a.data.swapaxes(-1, -2) @ self.result.grad
             self.b.grad += _reshape_grad(grad, self.b.shape, grad.shape, matmul=True) # reshape grad to match b
-            self.b._backward(self.result)
+            self.b._backward()
 
 
 class Logarithm:
@@ -377,7 +372,7 @@ class Logarithm:
         if self.tensor.requires_grad:
             grad = self.result.grad / self.tensor.data
             self.tensor.grad += grad
-            self.tensor._backward(self.result)
+            self.tensor._backward()
 
 
 class SquareRoot:
@@ -397,7 +392,7 @@ class SquareRoot:
         if self.tensor.requires_grad:
             grad = (0.5 / self.result.data) * self.result.grad
             self.tensor.grad += grad
-            self.tensor._backward(self.result)
+            self.tensor._backward()
 
 
 class Exponential:
@@ -417,7 +412,7 @@ class Exponential:
         if self.tensor.requires_grad:
             grad = self.result.data * self.result.grad
             self.tensor.grad += grad
-            self.tensor._backward(self.result)
+            self.tensor._backward()
 
 
 class Absolute:
@@ -436,7 +431,7 @@ class Absolute:
         if self.tensor.requires_grad:
             grad = cf.xp.sign(self.tensor.data) * self.result.grad
             self.tensor.grad += grad
-            self.tensor._backward(self.result)
+            self.tensor._backward()
 
 
 class Summation:
@@ -462,7 +457,7 @@ class Summation:
                 grad = cf.xp.expand_dims(grad, axis=self.axis)
                 
             self.tensor.grad += cf.xp.ones_like(self.tensor.data) * grad
-            self.tensor._backward(self.result)
+            self.tensor._backward()
 
 
 class Maximum:
@@ -493,7 +488,7 @@ class Maximum:
             mask /= cf.xp.sum(mask, axis=self.axis, keepdims=True)
 
             self.tensor.grad += mask * grad
-            self.tensor._backward(self.result)
+            self.tensor._backward()
 
 
 class Minimum:
@@ -524,7 +519,7 @@ class Minimum:
             mask /= cf.xp.sum(mask, axis=self.axis, keepdims=True)
 
             self.tensor.grad += mask * grad
-            self.tensor._backward(self.result)
+            self.tensor._backward()
 
 
 class Mean:
@@ -550,7 +545,7 @@ class Mean:
                 grad = cf.xp.expand_dims(grad, axis=self.axis)
 
             self.tensor.grad += cf.xp.ones_like(self.tensor.data) * grad
-            self.tensor._backward(self.result)
+            self.tensor._backward()
 
 
 class Variance:
@@ -575,7 +570,7 @@ class Variance:
             grad = (2 / self.tensor.shape[self.axis]) * (self.tensor.data - mean)
             grad *= self.result.grad if self.keepdims else cf.xp.expand_dims(self.result.grad, axis=self.axis)
             self.tensor.grad += grad
-            self.tensor._backward(self.result)
+            self.tensor._backward()
 
 
 class Transpose:
@@ -598,7 +593,7 @@ class Transpose:
             inverse_axes = cf.xp.argsort(self.axes)
             grad = cf.xp.transpose(self.result.grad, axes=inverse_axes)
             self.tensor.grad += grad
-            self.tensor._backward(self.result)
+            self.tensor._backward()
 
 
 class Reshape:
@@ -620,7 +615,7 @@ class Reshape:
         if self.tensor.requires_grad:
             grad = cf.xp.reshape(self.result.grad, self.tensor.shape)
             self.tensor.grad += grad
-            self.tensor._backward(self.result)
+            self.tensor._backward()
 
 
 class Concatenate:
@@ -645,7 +640,7 @@ class Concatenate:
         for i, tensor in enumerate(self.tensors):
             if tensor.requires_grad:
                 tensor.grad += grad[i]
-                tensor._backward(self.result)
+                tensor._backward()
 
 
 class Stack:
@@ -669,7 +664,7 @@ class Stack:
         for i, tensor in enumerate(self.tensors):
             if tensor.requires_grad:
                 tensor.grad += grad[i].reshape(tensor.shape)
-                tensor._backward(self.result)
+                tensor._backward()
 
 
 class MaskedFill:
@@ -692,12 +687,12 @@ class MaskedFill:
         if self.tensor.requires_grad:
             grad = cf.xp.where(self.condition, self.result.grad, 0) # Only propagate grad where condition is True
             self.tensor.grad += grad
-            self.tensor._backward(self.result)
+            self.tensor._backward()
 
         if self.value.requires_grad:
             grad = cf.xp.where(self.condition, 0, self.result.grad) # Only propagate grad where condition is False
             self.value.grad += grad
-            self.value._backward(self.result)
+            self.value._backward()
 
 
 class Slice:
@@ -718,7 +713,7 @@ class Slice:
             grad = cf.xp.zeros_like(self.tensor.data)
             grad[self.index] = self.result.grad
             self.tensor.grad += grad
-            self.tensor._backward(self.result)
+            self.tensor._backward()
 
 
 class SetSlice:
@@ -743,12 +738,12 @@ class SetSlice:
             grad = self.result.grad.copy()
             grad[self.index] = 0
             self.tensor.grad += grad
-            self.tensor._backward(self.result)
+            self.tensor._backward()
         # Gradient is placed at the sliced indices
         if self.value.requires_grad:
             grad = self.result.grad[self.index]
             self.value.grad += grad
-            self.value._backward(self.result)
+            self.value._backward()
 
 
 autograd_enabled: bool = True

@@ -5,10 +5,10 @@ from typing import Any, Literal, Iterator, get_origin, get_args, get_type_hints
 
 try:
     import cupy as cp
-    _has_cuda = cp.cuda.is_available()
+    _has_cuda: bool = cp.cuda.is_available()
 except ImportError:
     cp = None
-    _has_cuda = False
+    _has_cuda: bool = False
     print("Cupy is not installed or no CUDA device is available. Falling back to NumPy.")
 
 
@@ -137,7 +137,7 @@ def has_cuda() -> bool:
     return _has_cuda
 
 
-@(lambda cls: cls()) # Instantiate DType class
+@(lambda cls: cls()) # Singleton instance
 class DType:
     """Data types supported by NeuralEngine."""
     FLOAT = xp.floating

@@ -137,6 +137,7 @@ def has_cuda() -> bool:
     return _has_cuda
 
 
+@(lambda cls: cls()) # Instantiate DType class
 class DType:
     """Data types supported by NeuralEngine."""
     FLOAT = xp.floating
@@ -155,7 +156,7 @@ class DType:
     UINT64 = xp.uint64
     BOOL = xp.bool_
 
-    def __class_getitem__(cls, key: str) -> type:
+    def __getitem__(cls, key: str) -> type:
         """Allows access to data types by key."""
         return getattr(cls, key)
 

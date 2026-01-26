@@ -6,9 +6,9 @@ class Tensor(metaclass=cf.Typed):
     """Core Tensor class for autograd and computation."""
     def __init__(self, data: Any, requires_grad: bool = False, dtype: type = None, _operation = None):
         """
-        @param data: Input data for the tensor (array-like).
-        @param requires_grad: Whether to track gradients for this tensor.
-        @param dtype: Data type of the tensor.
+        :param data: Input data for the tensor (array-like).
+        :param requires_grad: Whether to track gradients for this tensor.
+        :param dtype: Data type of the tensor.
         """
         self.data = array(data, dtype=dtype)
         self.requires_grad = requires_grad if autograd_enabled else False
@@ -133,57 +133,57 @@ class Tensor(metaclass=cf.Typed):
         return self.data <= array(other)
 
     def sum(self, axis=-1, keepdims=False):
-        """sum over axis.
-        @param axis: Axis to sum over
-        @param keepdims: Keep reduced dimensions
-        """
+        """Sum over axis.
+
+        :param axis: Axis to sum over.
+        :param keepdims: Keep reduced dimensions."""
         return Summation(self, axis, keepdims)()
     
     def max(self, axis=-1, keepdims=False):
-        """max element over axis.
-        @param axis: Axis to max element
-        @param keepdims: Keep reduced dimensions
-        """
+        """Max element over axis.
+
+        :param axis: Axis to max element.
+        :param keepdims: Keep reduced dimensions."""
         return Maximum(self, axis, keepdims)()
     
     def min(self, axis=-1, keepdims=False):
-        """min element over axis.
-        @param axis: Axis to min element
-        @param keepdims: Keep reduced dimensions
-        """
+        """Min element over axis.
+
+        :param axis: Axis to min element.
+        :param keepdims: Keep reduced dimensions."""
         return Minimum(self, axis, keepdims)()
     
     def mean(self, axis=-1, keepdims=False):
-        """mean over axis.
-        @param axis: Axis to mean over
-        @param keepdims: Keep reduced dimensions
-        """
+        """Mean over axis.
+
+        :param axis: Axis to mean over.
+        :param keepdims: Keep reduced dimensions."""
         return Mean(self, axis, keepdims)()
     
     def var(self, axis=-1, keepdims=False):
-        """variance over axis.
-        @param axis: Axis to variance over
-        @param keepdims: Keep reduced dimensions
-        """
+        """Variance over axis.
+
+        :param axis: Axis to variance over.
+        :param keepdims: Keep reduced dimensions."""
         return Variance(self, axis, keepdims)()
     
     def transpose(self, *axes):
         """Transpose the tensor.
-        @param axes: New axes order
-        """
+
+        :param axes: New axes order."""
         return Transpose(self, axes)()
     
     def reshape(self, *shape):
         """Reshape the tensor.
-        @param shape: New shape for the tensor
-        """
+
+        :param shape: New shape for the tensor."""
         return Reshape(self, shape)()
     
     def masked_fill(self, mask, fill):
         """Fill elements where mask is True with fill value.
-        @param mask: Boolean mask to select elements
-        @param fill: Value to fill where mask is True
-        """
+
+        :param mask: Boolean mask to select elements.
+        :param fill: Value to fill where mask is True."""
         return MaskedFill(fill, mask, self)()
     
     @property
@@ -199,7 +199,7 @@ class Tensor(metaclass=cf.Typed):
                 setattr(self, attr, array(getattr(self, attr), dtype=dtype)) 
 
     def _backward(self) -> None:
-        """internal method to handle backward pass."""
+        """Internal method to handle backward pass."""
         self._children -= 1 # One child tensor processed
         if not self._children and self._operation:
             self._operation() # Propagate to parents
@@ -217,8 +217,8 @@ class Tensor(metaclass=cf.Typed):
 
     def to(self, device: Literal['cpu', 'cuda']) -> 'Tensor':
         """Move the tensor to the specified device.
-        @param device: The device to move to, either 'cpu' or 'cuda'
-        """
+
+        :param device: The device to move to, either 'cpu' or 'cuda'."""
         if device == 'cpu':
             if not cf.has_cuda() or isinstance(self.data, cf.np.ndarray): return self
             transfer_fn = cf.cp.asnumpy
@@ -764,9 +764,9 @@ class NoGrad:
 @cf.Typed.validate
 def array(data: Any, dtype: type = None):
     """Convert data to a numpy array if it is not already.
-    @param data: Input data to convert (array-like).
-    @param dtype: Desired data type of the output array.
-    """
+
+    :param data: Input data to convert (array-like).
+    :param dtype: Desired data type of the output array."""
     if isinstance(data, Tensor):
         if dtype is None:
             return data.data.copy()

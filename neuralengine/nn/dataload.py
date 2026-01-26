@@ -9,15 +9,15 @@ class DataLoader(metaclass=cf.Typed):
                  val_split: float = 0, shuffle: bool = True, random_seed: int = None, bar_size: int = 30, \
                  bar_info: str = ''):
         """
-        @param x: Input data (array-like).
-        @param y: Target data (array-like).
-        @param dtype: Data types for the dataset.
-        @param batch_size: Number of samples per batch.
-        @param val_split: Fraction of data to use for validation.
-        @param shuffle: Whether to shuffle the data at the start of each epoch.
-        @param random_seed: Seed for random number generator to ensure reproducibility.
-        @param bar_size: Length of the progress bar.
-        @param bar_info: Additional info to display with the progress bar.
+        :param x: Input data (array-like).
+        :param y: Target data (array-like).
+        :param dtype: Data types for the dataset.
+        :param batch_size: Number of samples per batch.
+        :param val_split: Fraction of data to use for validation.
+        :param shuffle: Whether to shuffle the data at the start of each epoch.
+        :param random_seed: Seed for random number generator to ensure reproducibility.
+        :param bar_size: Length of the progress bar.
+        :param bar_info: Additional info to display with the progress bar.
         """
         dtype = dtype if isinstance(dtype, tuple) else (dtype,)
 
@@ -37,9 +37,9 @@ class DataLoader(metaclass=cf.Typed):
 
     def __call__(self, epochs: int = 10) -> range:
         """Sets the number of epochs for progress tracking.
-        @param epochs: Total number of epochs.
-        @return: Range object for the number of epochs.
-        """
+
+        :param epochs: Total number of epochs.
+        :return: Range object for the number of epochs."""
         self.epochs = epochs
         self.current_epoch = 1
         return range(1, epochs + 1)

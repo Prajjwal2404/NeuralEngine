@@ -16,6 +16,38 @@ xp = np # Backend array provider. Default to NumPy
 _current_device: Literal['cpu', 'cuda'] = 'cpu' # Default device
 
 
+@(lambda cls: cls()) # Singleton instance
+class DType:
+    """Data types supported by NeuralEngine."""
+    FLOAT = xp.floating
+    FLOAT16 = xp.float16
+    FLOAT32 = xp.float32
+    FLOAT64 = xp.float64
+    INT = xp.integer
+    INT8 = xp.int8
+    INT16 = xp.int16
+    INT32 = xp.int32
+    INT64 = xp.int64
+    UINT = xp.unsignedinteger
+    UINT8 = xp.uint8
+    UINT16 = xp.uint16
+    UINT32 = xp.uint32
+    UINT64 = xp.uint64
+    BOOL = xp.bool_
+
+    def __getitem__(cls, key: str) -> type:
+        """Allows access to data types by key."""
+        return getattr(cls, key)
+
+    def __iter__(self) -> Iterator[type]:
+        """Iterator over the data types."""
+        return iter(getattr(self, attr) for attr in dir(self) if attr.isupper())
+    
+    def __repr__(self) -> str:
+        """String representation of the DType types."""
+        return f"DType({', '.join(attr for attr in dir(self) if attr.isupper())})"
+
+
 class Typed(type):
     """A metaclass for validating data types.
     Add `STRICT = True` in class definition to enforce strict type checking."""
@@ -36,16 +68,16 @@ class Typed(type):
     @classmethod
     def validation(cls, enabled: bool) -> None:
         """Enables or disables type validation globally.
-        @param enabled: If True, enables validation; if False, disables it.
-        """
+
+        :param enabled: If True, enables validation; if False, disables it."""
         cls._enabled = enabled
     
     @classmethod
     def validate(cls, func = None, strict: bool = False):
         """Decorator to validate function arguments based on type hints.
-        @param func: The function to validate.
-        @param strict: Whether to enforce strict type checking.
-        """
+
+        :param func: The function to validate.
+        :param strict: Whether to enforce strict type checking."""
         if func is None: return lambda f: cls.validate(f, strict)
         if not cls._enabled or getattr(func, '_validated', False): return func
         sig = signature(func)
@@ -111,8 +143,8 @@ class Typed(type):
 @Typed.validate
 def set_device(device: Literal['cpu', 'cuda']) -> None:
     """Sets the current device for tensor operations.
-    @param device: The device to set, either 'cpu' or 'cuda'
-    """
+
+    :param device: The device to set, either 'cpu' or 'cuda'."""
     global xp, _current_device
     if device == 'cpu':
         xp = np
@@ -125,45 +157,13 @@ def set_device(device: Literal['cpu', 'cuda']) -> None:
 
 def get_device() -> Literal['cpu', 'cuda']:
     """Returns the current device being used for tensor operations.
-    @return: The current device, either 'cpu' or 'cuda'
-    """
+
+    :return: The current device, either 'cpu' or 'cuda'."""
     return _current_device
 
 
 def has_cuda() -> bool:
     """Checks if a CUDA device is available.
-    @return: True if CUDA is available, False otherwise
-    """
+
+    :return: True if CUDA is available, False otherwise."""
     return _has_cuda
-
-
-@(lambda cls: cls()) # Singleton instance
-class DType:
-    """Data types supported by NeuralEngine."""
-    FLOAT = xp.floating
-    FLOAT16 = xp.float16
-    FLOAT32 = xp.float32
-    FLOAT64 = xp.float64
-    INT = xp.integer
-    INT8 = xp.int8
-    INT16 = xp.int16
-    INT32 = xp.int32
-    INT64 = xp.int64
-    UINT = xp.unsignedinteger
-    UINT8 = xp.uint8
-    UINT16 = xp.uint16
-    UINT32 = xp.uint32
-    UINT64 = xp.uint64
-    BOOL = xp.bool_
-
-    def __getitem__(cls, key: str) -> type:
-        """Allows access to data types by key."""
-        return getattr(cls, key)
-
-    def __iter__(self) -> Iterator[type]:
-        """Iterator over the data types."""
-        return iter(getattr(self, attr) for attr in dir(self) if attr.isupper())
-    
-    def __repr__(self) -> str:
-        """String representation of the DType types."""
-        return f"DType({', '.join(attr for attr in dir(self) if attr.isupper())})"

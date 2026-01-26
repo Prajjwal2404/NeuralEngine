@@ -14,9 +14,9 @@ class Layer(metaclass=Typed):
 
     def __call__(self, x, *args, **kwargs) -> Tensor | list[Tensor]:
         """Calls the layer's forward method with the provided input.
-        @param x: Input tensor.
-        @return: Output tensor after applying the layer's forward pass.
-        """
+
+        :param x: Input tensor.
+        :return: Output tensor after applying the layer's forward pass."""
         x = x if isinstance(x, Tensor) else tensor(x)
         return self.forward(x, *args, **kwargs)
 
@@ -85,25 +85,25 @@ class Layer(metaclass=Typed):
 
     def to(self, device: Literal['cpu', 'cuda']) -> None:
         """Moves all parameters to the specified device (CPU or CUDA).
-        @param device: The device to move to, either 'cpu' or 'cuda'
-        """
+
+        :param device: The device to move to, either 'cpu' or 'cuda'."""
         for attr in vars(self).values():
             if isinstance(attr, (Layer, Tensor)):
                 attr.to(device) # Propagate device to sub-layers and tensors
 
     def forward(self, x: Tensor, *args, **kwargs) -> Tensor:
         """Performs the forward pass of the layer. To be implemented by subclasses."""
-        raise NotImplementedError("forward() must be implemented in subclasses")
+        raise NotImplementedError("forward() must be implemented in subclasses.")
 
 
 class Linear(Layer):
     """Fully connected layer."""
     def __init__(self, out_size: int, *in_size: int, bias: bool = True, activation: Layer = None):
         """
-        @param out_size: Number of output features.
-        @param in_size: Number of input features or shape of input tensor.
-        @param bias: Whether to include a bias term.
-        @param activation: (optional) Activation layer to apply after the linear transformation.
+        :param out_size: Number of output features.
+        :param in_size: Number of input features or shape of input tensor.
+        :param bias: Whether to include a bias term.
+        :param activation: (optional) Activation layer to apply after the linear transformation.
         """
         super().__init__()
         self.has_bias = bias
@@ -133,16 +133,16 @@ class LSTM(Layer):
                  attention: bool = False, enc_size: int = None, return_seq: bool = False, \
                  return_state: bool = False, bidirectional: bool = False, use_output: tuple[int, ...] = -1):
         """
-        @param lstm_units: Number of LSTM units (output size).
-        @param in_size: Number of input features or shape of input tensor.
-        @param n_timesteps: Number of timesteps in the input sequence.
-        @param bias: Include bias term.
-        @param attention: Use multiplicative attention mechanism.
-        @param enc_size: Size of encoder outputs (for Cross-Attention).
-        @param return_seq: Return hidden states for all timesteps.
-        @param return_state: Return final cell and hidden states.
-        @param bidirectional: Use bidirectional LSTM.
-        @param use_output: Output selection (-3: all hidden states, -2: cell state, -1: last hidden state).
+        :param lstm_units: Number of LSTM units (output size).
+        :param in_size: Number of input features or shape of input tensor.
+        :param n_timesteps: Number of timesteps in the input sequence.
+        :param bias: Include bias term.
+        :param attention: Use multiplicative attention mechanism.
+        :param enc_size: Size of encoder outputs (for Cross-Attention).
+        :param return_seq: Return hidden states for all timesteps.
+        :param return_state: Return final cell and hidden states.
+        :param bidirectional: Use bidirectional LSTM.
+        :param use_output: Output selection (-3: all hidden states, -2: cell state, -1: last hidden state).
         """
         super().__init__()
         self.has_bias = bias
@@ -210,8 +210,8 @@ class MultiplicativeAttention(Layer):
     """Multiplicative (dot-product) attention layer."""
     def __init__(self, units: int, *in_size: int):
         """
-        @param units: Number of attention units (output size).
-        @param in_size: Number of input features or shape of input tensor.
+        :param units: Number of attention units (output size).
+        :param in_size: Number of input features or shape of input tensor.
         """
         super().__init__()
         self.out_size = units
@@ -236,8 +236,8 @@ class MultiHeadAttention(Layer):
     """Multi-head attention layer."""
     def __init__(self, *in_size: int, num_heads: int = 1):
         """
-        @param num_heads: Number of attention heads.
-        @param in_size: Number of input features or shape of input tensor.
+        :param num_heads: Number of attention heads.
+        :param in_size: Number of input features or shape of input tensor.
         """
         super().__init__()
         self.num_heads = num_heads
@@ -284,9 +284,9 @@ class Embedding(Layer):
     """Embedding layer for mapping indices to dense vectors."""
     def __init__(self, embed_size: int, vocab_size: int, timesteps: int = None):
         """
-        @param embed_size: Size of the embedding vectors.
-        @param vocab_size: Number of unique tokens in the vocabulary.
-        @param timesteps: Maximum number of timesteps in the input sequence (for positional encoding).
+        :param embed_size: Size of the embedding vectors.
+        :param vocab_size: Number of unique tokens in the vocabulary.
+        :param timesteps: Maximum number of timesteps in the input sequence (for positional encoding).
         """
         super().__init__()
         self.out_size = embed_size
@@ -310,8 +310,8 @@ class LayerNorm(Layer):
     """Layer normalization."""
     def __init__(self, *num_feat: int, eps: float = 1e-7):
         """
-        @param num_feat: Number of features for normalization parameters (gamma and beta).
-        @param eps: Small value for numerical stability.
+        :param num_feat: Number of features for normalization parameters (γ and β).
+        :param eps: Small value for numerical stability.
         """
         super().__init__()
         self.eps = eps
@@ -336,7 +336,7 @@ class Dropout(Layer):
     """Dropout regularization."""
     def __init__(self, prob: float = 0.5):
         """
-        @param prob: Probability of dropping out a unit.
+        :param prob: Probability of dropping out a unit.
         """
         super().__init__()
         self.prob = prob
@@ -393,8 +393,8 @@ class ReLU(Layer):
     """ReLU activation."""
     def __init__(self, alpha: float = 0, parametric: bool = False):
         """
-        @param alpha: (Leaky ReLU) Slope for negative inputs (0 for standard ReLU).
-        @param parametric: (Parametric ReLU) Whether to use a learnable parameter for alpha.
+        :param alpha: (Leaky ReLU) Slope for negative inputs (0 for standard ReLU).
+        :param parametric: (Parametric ReLU) Whether to use a learnable parameter for alpha.
         """
         super().__init__()
         self.alpha = tensor(alpha, requires_grad=parametric, dtype=self.dtype)
@@ -409,7 +409,7 @@ class SiLU(Layer):
     """SiLU (Swish) activation."""
     def __init__(self, beta: bool = False):
         """
-        @param beta: Whether to use a learnable parameter for β in SiLU.
+        :param beta: Whether to use a learnable parameter for β in SiLU.
         """
         super().__init__()
         self.sigmoid = Sigmoid()
@@ -425,7 +425,7 @@ class Softmax(Layer):
     """Softmax activation."""
     def __init__(self, axis: int = -1):
         """
-        @param axis: Axis along which to compute the softmax (default is -1).
+        :param axis: Axis along which to compute the softmax (default is -1).
         """
         super().__init__()
         self.axis = axis

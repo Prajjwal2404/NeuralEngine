@@ -11,9 +11,10 @@ class Loss(metaclass=Typed):
 
     def __call__(self, z, y, *args, **kwargs) -> Tensor:
         """ Calls the loss compute method with the provided predictions and targets.
-        @param z: Predictions (logits or outputs of the model).
-        @param y: Ground truth labels.
-        """
+
+        :param z: Predictions (logits or outputs of the model).
+        :param y: Ground truth labels.
+        :return: Computed loss as a Tensor."""
         z = z if isinstance(z, Tensor) else tensor(z)
         y = y if isinstance(y, Tensor) else tensor(y)
         loss = self.compute(z, y, *args, **kwargs)
@@ -37,7 +38,7 @@ class Loss(metaclass=Typed):
         
     def compute(self, z: Tensor, y: Tensor, *args, **kwargs) -> Tensor:
         """Computes the loss given predictions and targets. To be implemented by subclasses."""
-        raise NotImplementedError("compute() must be implemented in subclasses")
+        raise NotImplementedError("compute() must be implemented in subclasses.")
 
 
 class MSE(Loss):
@@ -60,13 +61,13 @@ class MAE(Loss):
         # MAE = 1/N Σ |z - y|
         loss = abs(z - y)
         return mean(loss, axis=-1, keepdims=False)
-    
+
 
 class Huber(Loss):
     """Huber loss."""
     def __init__(self, delta: float = 1.0):
         """
-        @param delta: Threshold for Huber loss
+        :param delta: Threshold for Huber loss.
         """
         super().__init__()
         self.delta = delta
@@ -82,8 +83,8 @@ class CrossEntropy(Loss):
     """Cross Entropy loss."""
     def __init__(self, binary: bool = False, eps: float = 1e-7):
         """
-        @param binary: Whether to use binary cross entropy (default: False)
-        @param eps: Small value for numerical stability
+        :param binary: Whether to use binary cross entropy (default: False).
+        :param eps: Small value for numerical stability.
         """
         super().__init__()
         self.binary = binary
@@ -103,7 +104,7 @@ class GaussianNLL(Loss):
     """Gaussian Negative Log Likelihood loss."""
     def __init__(self, eps: float = 1e-7):
         """
-        @param eps: Small value for numerical stability
+        :param eps: Small value for numerical stability.
         """
         super().__init__()
         self.eps = eps
@@ -120,7 +121,7 @@ class KLDivergence(Loss):
     """Kullback-Leibler Divergence loss."""
     def __init__(self, eps: float = 1e-7):
         """
-        @param eps: Small value for numerical stability
+        :param eps: Small value for numerical stability.
         """
         super().__init__()
         self.eps = eps

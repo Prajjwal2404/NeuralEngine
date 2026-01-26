@@ -28,17 +28,17 @@ class Optimizer(metaclass=cf.Typed):
 
     def step(self) -> None:
         """Performs a single optimization step. To be implemented by subclasses."""
-        raise NotImplementedError("step() must be implemented in subclasses")
+        raise NotImplementedError("step() must be implemented in subclasses.")
 
 
 class SGD(Optimizer):
     """Stochastic Gradient Descent (SGD) optimizer."""
     def __init__(self, lr: float = 1e-2, reg: float = 0, momentum: float = 0, nesterov: bool = False):
         """
-        @param lr: Learning rate
-        @param reg: L2 regularization
-        @param momentum: Momentum factor
-        @param nesterov: Use Nesterov momentum
+        :param lr: Learning rate
+        :param reg: L2 regularization
+        :param momentum: Momentum factor
+        :param nesterov: Use Nesterov momentum
         """
         super().__init__()
         self.lr = lr
@@ -75,10 +75,10 @@ class Adam(Optimizer):
     def __init__(self, lr: float = 1e-3, betas: tuple[float, float] | float = (0.9, 0.99), \
                  eps: float = 1e-7, reg: float = 0):
         """
-        @param lr: Learning rate
-        @param betas: (beta_m, beta_v) for Adam, beta_v for RMSProp
-        @param eps: Numerical stability
-        @param reg: L2 regularization
+        :param lr: Learning rate
+        :param betas: (β_m, β_v) for Adam, β_v for RMSProp
+        :param eps: Numerical stability
+        :param reg: L2 regularization
         """
         super().__init__()
         self.lr = lr

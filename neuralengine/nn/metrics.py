@@ -11,9 +11,10 @@ class Metric(metaclass=Typed):
 
     def __call__(self, z, y, *args, **kwargs) -> 'Metric':
         """Calls the metric compute method with the provided predictions and targets.
-        @param z: Predictions (logits or outputs of the model).
-        @param y: Ground truth labels or targets.
-        """
+
+        :param z: Predictions (logits or outputs of the model).
+        :param y: Ground truth labels or targets.
+        :return: The Metric instance with updated values."""
         z = z if isinstance(z, Tensor) else tensor(z)
         y = y if isinstance(y, Tensor) else tensor(y)
         metric = self.compute(z, y, *args, **kwargs)
@@ -45,7 +46,7 @@ class Metric(metaclass=Typed):
     @no_grad
     def compute(self, z: Tensor, y: Tensor, *args, **kwargs) -> dict[str, Tensor]:
         """Computes the metric given predictions and targets. To be implemented by subclasses."""
-        raise NotImplementedError("compute() must be implemented in subclasses")
+        raise NotImplementedError("compute() must be implemented in subclasses.")
 
 
 class RMSE(Metric):
@@ -66,7 +67,7 @@ class R2(Metric):
     """R2 Score metric."""
     def __init__(self, eps: float = 1e-7):
         """
-        @param eps: Small value for numerical stability
+        :param eps: Small value for numerical stability.
         """
         super().__init__()
         self.eps = eps
@@ -83,16 +84,16 @@ class R2(Metric):
 
 
 class ClassificationMetrics(Metric):
-    """Classification metrics: Accuracy, Precision, Recall, F1 Score, Confusion Matrix."""
+    """Classification metrics: Accuracy, Precision, Recall, F1 Score."""
     def __init__(self, num_classes: int = None, acc: bool = True, prec: bool = False, \
                  rec: bool = False, f1: bool = False, eps: float = 1e-7):
         """
-        @param num_classes: Number of classes for classification tasks.
-        @param acc: Whether to compute accuracy.
-        @param prec: Whether to compute precision.
-        @param rec: Whether to compute recall.
-        @param f1: Whether to compute F1 score.
-        @param eps: Small value for numerical stability
+        :param num_classes: Number of classes for classification tasks.
+        :param acc: Whether to compute accuracy.
+        :param prec: Whether to compute precision.
+        :param rec: Whether to compute recall.
+        :param f1: Whether to compute F1 score.
+        :param eps: Small value for numerical stability.
         """
         super().__init__()
         self.num_classes = num_classes
@@ -143,7 +144,7 @@ class Perplexity(Metric):
     """Perplexity metric for generative models."""
     def __init__(self, eps: float = 1e-7):
         """
-        @param eps: Small value for numerical stability
+        :param eps: Small value for numerical stability.
         """
         super().__init__()
         self.eps = eps

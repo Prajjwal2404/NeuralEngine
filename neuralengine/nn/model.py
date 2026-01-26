@@ -18,11 +18,11 @@ class Model(metaclass=Typed):
     def __init__(self, input_size: tuple[int, ...] | int, optimizer: Optimizer, loss: Loss, \
                  metrics: list[Loss | Metric] = [], dtype: type = DType.FLOAT32):
         """
-        @param input_size: Tuple or int, shape of input data samples (int if 1D).
-        @param optimizer: Optimizer instance.
-        @param loss: Loss instance.
-        @param metrics: List/tuple of Metric or Loss instances.
-        @param dtype: Data type for the model parameters.
+        :param input_size: Tuple or int, shape of input data samples (int if 1D).
+        :param optimizer: Optimizer instance.
+        :param loss: Loss instance.
+        :param metrics: List/tuple of Metric or Loss instances.
+        :param dtype: Data type for the model parameters.
         """
         self.input_size = input_size
         self.dtype = dtype
@@ -33,8 +33,8 @@ class Model(metaclass=Typed):
 
     def __call__(self, *layers: Layer) -> None:
         """Allows the model to be called with layers to build the model.
-        @param layers: Variable number of Layer instances to add to the model.
-        """
+
+        :param layers: Variable number of Layer instances to add to the model."""
         self.build(*layers)
 
 
@@ -54,8 +54,8 @@ class Model(metaclass=Typed):
 
     def build(self, *layers: Layer) -> None:
         """Builds the model by adding layers.
-        @param layers: Variable number of Layer instances to add to the model.
-        """
+
+        :param layers: Variable number of Layer instances to add to the model."""
         self.parameters, prev_layer = {}, None
         for i, layer in enumerate(layers):
             layer.dtype = self.dtype
@@ -83,15 +83,15 @@ class Model(metaclass=Typed):
     @classmethod
     def load_model(cls, filepath: str) -> 'Model':
         """Loads the model from a file.
-        @param filepath: Path to the file from which the model will be loaded.
-        @return: Loaded Model instance.
-        """
+
+        :param filepath: Path to the file from which the model will be loaded.
+        :return: Loaded Model instance."""
         filepath = filepath if filepath.endswith('.pkl') else filepath + '.pkl'
         with open(filepath, 'rb') as file:
             model = pkl.load(file)
 
         if not isinstance(model, cls):
-            raise ValueError("Loaded object is not a Model instance")
+            raise ValueError("Loaded object is not a Model instance.")
 
         device = get_device()
         for layer in model.layers:
@@ -101,8 +101,8 @@ class Model(metaclass=Typed):
 
     def load_params(self, filepath: str) -> None:
         """Loads the model parameters from a file.
-        @param filepath: Path to the file from which model parameters will be loaded.
-        """
+
+        :param filepath: Path to the file from which model parameters will be loaded."""
         filepath = filepath if filepath.endswith('.pkl') else filepath + '.pkl'
         with open(filepath, 'rb') as file:
             saved_params = pkl.load(file)
@@ -125,9 +125,9 @@ class Model(metaclass=Typed):
 
     def save(self, filename: str, weights_only: bool = False) -> None:
         """Saves the model or model parameters to a file.
-        @param filename: Name of the file where model will be saved.
-        @param weights_only: If True, saves only weights; else saves entire model structure.
-        """
+
+        :param filename: Name of the file where model will be saved.
+        :param weights_only: If True, saves only weights; else saves entire model structure."""
         filename = filename if filename.endswith('.pkl') else filename + '.pkl'
         filepath = os.path.join(os.getcwd(), filename)
         os.makedirs(os.path.dirname(filepath), exist_ok=True) # Ensure directory exists
@@ -139,11 +139,11 @@ class Model(metaclass=Typed):
 
     def train(self, dataloader: DataLoader, epochs: int = 10, patience: int = 0, ckpt_interval: int = 0) -> None:
         """Trains the model on data.
-        @param dataloader: DataLoader instance providing training data.
-        @param epochs: Number of epochs to train
-        @param patience: Early stopping patience (in epochs), saves best weights
-        @param ckpt_interval: Interval (in epochs) to save checkpoints
-        """
+
+        :param dataloader: DataLoader instance providing training data.
+        :param epochs: Number of epochs to train.
+        :param patience: Early stopping patience (in epochs), saves best weights.
+        :param ckpt_interval: Interval (in epochs) to save checkpoints."""
         for layer in self.layers:
             layer.mode = 'train'
 
@@ -193,10 +193,10 @@ class Model(metaclass=Typed):
 
     def eval(self, dataloader: DataLoader, validate: bool = False) -> Tensor | float:
         """Evaluates the model on data.
-        @param dataloader: DataLoader instance providing evaluation data.
-        @param validate: If True, evaluates on validation set; else on test set.
-        @return: Output tensor after evaluation or validation loss if validate is True.
-        """
+
+        :param dataloader: DataLoader instance providing evaluation data.
+        :param validate: If True, evaluates on validation set; else on test set.
+        :return: Output tensor after evaluation or validation loss if validate is True."""
         for layer in self.layers:
             layer.mode = 'eval'
 

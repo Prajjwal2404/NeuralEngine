@@ -55,18 +55,18 @@ class SGD(Optimizer):
     def step(self) -> None:
         """Updates the parameters using gradients and learning rate."""
         for param in self._params:
-            # grad = ∂L/∂w + λw (L2 regularization)
+            # ∇L(θ) = ∂L/∂w + λw (L2 regularization)
             grad = param.grad + self.reg * param.data
             if self.momentum > 0:
                 v_prev = param.velocity
-                # velocity update: v = μ · v_prev + grad
+                # velocity update: v = μ · v_prev + ∇L(θ)
                 param.velocity = self.momentum * v_prev + grad
                 if self.nesterov:
-                    # Nesterov update: grad = (1 + μ) · v - μ · v_prev
+                    # Nesterov update: ∇L(θ) = (1 + μ) · v - μ · v_prev
                     grad = (1 + self.momentum) * param.velocity - self.momentum * v_prev
                 else:
                     grad = param.velocity
-            # SGD update: w = w - η · grad
+            # SGD update: w = w - η · ∇L(θ)
             param.data -= self.lr * grad
 
 
@@ -103,18 +103,18 @@ class Adam(Optimizer):
         """
         self.t += 1
         for param in self._params:
-            # grad = ∂L/∂w + λw (L2 regularization)
+            # ∇L(θ) = ∂L/∂w + λw (L2 regularization)
             grad = param.grad + self.reg * param.data
-            # v = β_v · v_prev + (1 - β_v) · grad²
+            # v = β_v · v_prev + (1 - β_v) · ∇L(θ)²
             param.v = (param.v * self.beta_v + (1 - self.beta_v) * cf.xp.square(grad))
             v_hat = param.v / (1 - self.beta_v ** self.t)
             if self.beta_m:
-                # m = β_m · m_prev + (1 - β_m) · grad
+                # m = β_m · m_prev + (1 - β_m) · ∇L(θ)
                 param.m = (param.m * self.beta_m + (1 - self.beta_m) * grad)
                 m_hat = param.m / (1 - self.beta_m ** self.t)
                 # Adam update: w = w - η · m̂ / (√v̂ + ε)
                 update = (self.lr * m_hat) / (cf.xp.sqrt(v_hat) + self.eps)
             else:
-                # RMSProp update: w = w - η · grad / (√v̂ + ε)
+                # RMSProp update: w = w - η · ∇L(θ) / (√v̂ + ε)
                 update = (self.lr * grad) / (cf.xp.sqrt(v_hat) + self.eps)
             param.data -= update

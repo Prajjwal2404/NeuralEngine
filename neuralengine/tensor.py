@@ -251,11 +251,11 @@ class Add:
         # ∂(a + b)/∂a = 1, ∂(a + b)/∂b = 1
         if self.a.requires_grad:
             grad = self.result.grad
-            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # reshape grad to match a
+            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # reshape ∇f(a, b) to a
             self.a._backward()
         if self.b.requires_grad:
             grad = self.result.grad
-            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # reshape grad to match b
+            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # reshape ∇f(a, b) to b
             self.b._backward()
 
 
@@ -275,11 +275,11 @@ class Multiply:
         # ∂(a·b)/∂a = b, ∂(a·b)/∂b = a
         if self.a.requires_grad:
             grad = self.result.grad * self.b.data
-            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # reshape grad to match a
+            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # reshape ∇f(a, b) to a
             self.a._backward()
         if self.b.requires_grad:
             grad = self.result.grad * self.a.data
-            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # reshape grad to match b
+            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # reshape ∇f(a, b) to b
             self.b._backward()
 
 
@@ -299,11 +299,11 @@ class Divide:
         # ∂(a/b)/∂a = 1/b, ∂(a/b)/∂b = -a/b²
         if self.a.requires_grad:
             grad = self.result.grad / self.b.data
-            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # reshape grad to match a
+            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # reshape ∇f(a, b) to a
             self.a._backward()
         if self.b.requires_grad:
-            grad = -self.result.grad * (self.result.data / self.b.data) # -a/b² = -(a/b)·(1/b) = -result·(1/b)
-            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # reshape grad to match b
+            grad = -self.result.grad * (self.result.data / self.b.data) # -a/b² = -(a/b)·(1/b) = -c·(1/b)
+            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # reshape ∇f(a, b) to b
             self.b._backward()
 
 
@@ -323,11 +323,11 @@ class Power:
         # ∂(a^b)/∂a = b·a^{b-1}, ∂(a^b)/∂b = a^b·ln(a)
         if self.base.requires_grad:
             grad = self.result.grad * (self.exp.data * (self.base.data ** (self.exp.data - 1)))
-            self.base.grad += _reshape_grad(grad, self.base.shape, grad.shape) # reshape grad to match base
+            self.base.grad += _reshape_grad(grad, self.base.shape, grad.shape) # reshape ∇f(b, e) to base
             self.base._backward()
         if self.exp.requires_grad:
             grad = self.result.grad * (self.base.data ** self.exp.data) * cf.xp.log(self.base.data)
-            self.exp.grad += _reshape_grad(grad, self.exp.shape, grad.shape) # reshape grad to match exponent
+            self.exp.grad += _reshape_grad(grad, self.exp.shape, grad.shape) # reshape ∇f(b, e) to exponent
             self.exp._backward()
 
 
@@ -347,11 +347,11 @@ class MatrixMul:
         # ∂(A·B)/∂A = dL/dZ · Bᵗ, ∂(A·B)/∂B = Aᵗ · dL/dZ
         if self.a.requires_grad:
             grad = self.result.grad @ self.b.data.swapaxes(-1, -2)
-            self.a.grad += _reshape_grad(grad, self.a.shape, grad.shape, matmul=True) # reshape grad to match a
+            self.a.grad += _reshape_grad(grad, self.a.shape, grad.shape, matmul=True) # reshape ∇f(a, b) to a
             self.a._backward()
         if self.b.requires_grad:
             grad = self.a.data.swapaxes(-1, -2) @ self.result.grad
-            self.b.grad += _reshape_grad(grad, self.b.shape, grad.shape, matmul=True) # reshape grad to match b
+            self.b.grad += _reshape_grad(grad, self.b.shape, grad.shape, matmul=True) # reshape ∇f(a, b) to b
             self.b._backward()
 
 
@@ -453,7 +453,7 @@ class Summation:
         # ∂(Σxᵢ)/∂xᵢ = 1
         if self.tensor.requires_grad:
             grad = self.result.grad
-            if not self.keepdims: # expand grad to match tensor's shape
+            if not self.keepdims: # expand ∇f(x) to match tensor's shape
                 grad = cf.xp.expand_dims(grad, axis=self.axis)
                 
             self.tensor.grad += cf.xp.ones_like(self.tensor.data) * grad
@@ -480,7 +480,7 @@ class Maximum:
         if self.tensor.requires_grad:
             grad = self.result.grad
             max = self.result.data
-            if not self.keepdims: # expand grad and max to match tensor's shape
+            if not self.keepdims: # expand ∇f(x) and max to match tensor's shape
                 grad = cf.xp.expand_dims(grad, axis=self.axis)
                 max = cf.xp.expand_dims(max, axis=self.axis)
 
@@ -511,7 +511,7 @@ class Minimum:
         if self.tensor.requires_grad:
             grad = self.result.grad
             min = self.result.data
-            if not self.keepdims: # expand grad and min to match tensor's shape
+            if not self.keepdims: # expand ∇f(x) and min to match tensor's shape
                 grad = cf.xp.expand_dims(grad, axis=self.axis)
                 min = cf.xp.expand_dims(min, axis=self.axis)
 
@@ -541,7 +541,7 @@ class Mean:
         # ∂(mean(x))/∂xᵢ = 1/N
         if self.tensor.requires_grad:
             grad = self.result.grad / self.tensor.shape[self.axis]
-            if not self.keepdims: # expand grad to match tensor's shape
+            if not self.keepdims: # expand ∇f(x) to match tensor's shape
                 grad = cf.xp.expand_dims(grad, axis=self.axis)
 
             self.tensor.grad += cf.xp.ones_like(self.tensor.data) * grad
@@ -685,12 +685,12 @@ class MaskedFill:
     def _deriv(self):
         # Gradient is distributed to tensor where condition is True, to value where False
         if self.tensor.requires_grad:
-            grad = cf.xp.where(self.condition, self.result.grad, 0) # Only propagate grad where condition is True
+            grad = cf.xp.where(self.condition, self.result.grad, 0) # ∇f(x) only where condition is True
             self.tensor.grad += grad
             self.tensor._backward()
 
         if self.value.requires_grad:
-            grad = cf.xp.where(self.condition, 0, self.result.grad) # Only propagate grad where condition is False
+            grad = cf.xp.where(self.condition, 0, self.result.grad) # ∇f(x) only where condition is False
             self.value.grad += grad
             self.value._backward()
 

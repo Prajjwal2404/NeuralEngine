@@ -52,9 +52,7 @@ def randn(*shape: int, xavier: bool = False, requires_grad: bool = False, \
     :param requires_grad: Track gradients
     :param dtype: Data type"""
     data = cf.xp.random.randn(*shape)
-    if xavier:
-        # Xavier scaling: data / √(first dimension)
-        data /= cf.xp.sqrt(shape[0])
+    if xavier: data /= cf.xp.sqrt(shape[0]) # x ~ N(0, 1/√fan_in)
     return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
 @cf.Typed.validate
@@ -271,8 +269,8 @@ def one_hot(labels, num_classes: int = None, dtype: type[cf.DType.INT] = cf.DTyp
     :param dtype: Data type (integer type)"""
     labels = array(labels, dtype=dtype)
     num_classes = num_classes or int(cf.xp.max(labels) + 1)
-    # one-hot encoding: eye(num_classes)[labels]
-    encoded = cf.xp.eye(num_classes)[labels]
+    # One-hot encoding: y = e_{ℓ} ∈ ℝ^C
+    encoded = cf.xp.identity(num_classes)[labels]
     return Tensor(encoded, dtype=dtype)
 
 def no_grad(func):

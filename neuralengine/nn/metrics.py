@@ -151,7 +151,7 @@ class Perplexity(Metric):
 
     @no_grad
     def compute(self, z: Tensor, y: Tensor) -> dict[str, Tensor]:
-        # Perplexity = exp(-1/N Σ y.log(p))
+        # Perplexity = e^{-1/N Σ y.log(p)}
         z = clip(z, self.eps, 1 - self.eps)
         cross_entropy = sum(-y * log(z), axis=-1)
         perplexity = exp(mean(cross_entropy, axis=-1))

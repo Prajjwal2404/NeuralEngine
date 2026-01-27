@@ -132,54 +132,54 @@ class Tensor(metaclass=cf.Typed):
         """New = A <= B"""
         return self.data <= array(other)
 
-    def sum(self, axis=-1, keepdims=False):
+    def sum(self, axis: int = -1, keepdims: bool = False):
         """Sum over axis.
 
         :param axis: Axis to sum over.
         :param keepdims: Keep reduced dimensions."""
         return Summation(self, axis, keepdims)()
     
-    def max(self, axis=-1, keepdims=False):
+    def max(self, axis: int = -1, keepdims: bool = False):
         """Max element over axis.
 
         :param axis: Axis to max element.
         :param keepdims: Keep reduced dimensions."""
         return Maximum(self, axis, keepdims)()
     
-    def min(self, axis=-1, keepdims=False):
+    def min(self, axis: int = -1, keepdims: bool = False):
         """Min element over axis.
 
         :param axis: Axis to min element.
         :param keepdims: Keep reduced dimensions."""
         return Minimum(self, axis, keepdims)()
     
-    def mean(self, axis=-1, keepdims=False):
+    def mean(self, axis: int = -1, keepdims: bool = False):
         """Mean over axis.
 
         :param axis: Axis to mean over.
         :param keepdims: Keep reduced dimensions."""
         return Mean(self, axis, keepdims)()
     
-    def var(self, axis=-1, keepdims=False):
+    def var(self, axis: int = -1, keepdims: bool = False):
         """Variance over axis.
 
         :param axis: Axis to variance over.
         :param keepdims: Keep reduced dimensions."""
         return Variance(self, axis, keepdims)()
     
-    def transpose(self, *axes):
+    def transpose(self, *axes: int):
         """Transpose the tensor.
 
         :param axes: New axes order."""
-        return Transpose(self, axes)()
+        return Transpose(self, *axes)()
     
-    def reshape(self, *shape):
+    def reshape(self, *shape: int):
         """Reshape the tensor.
 
         :param shape: New shape for the tensor."""
         return Reshape(self, shape)()
     
-    def masked_fill(self, mask, fill):
+    def masked_fill(self, mask, fill: Any):
         """Fill elements where mask is True with fill value.
 
         :param mask: Boolean mask to select elements.
@@ -574,9 +574,9 @@ class Variance:
 
 
 class Transpose:
-    def __init__(self, tensor, axes=None):
+    def __init__(self, tensor, *axes):
         self.tensor = tensor if isinstance(tensor, Tensor) else Tensor(tensor)
-        self.axes = tuple(range(len(self.tensor.shape) - 1, -1, -1)) if axes is None else axes
+        self.axes = axes if axes else tuple(range(len(self.tensor.shape) - 1, -1, -1))
 
     def __call__(self):
         requires_grad = self.tensor.requires_grad
@@ -685,12 +685,12 @@ class MaskedFill:
     def _deriv(self):
         # Gradient is distributed to tensor where condition is True, to value where False
         if self.tensor.requires_grad:
-            grad = cf.xp.where(self.condition, self.result.grad, 0) # ∇f(x) only where condition is True
+            grad = cf.xp.where(self.condition, self.result.grad, 0) # ∇f(x, y) only where condition is True
             self.tensor.grad += grad
             self.tensor._backward()
 
         if self.value.requires_grad:
-            grad = cf.xp.where(self.condition, 0, self.result.grad) # ∇f(x) only where condition is False
+            grad = cf.xp.where(self.condition, 0, self.result.grad) # ∇f(x, y) only where condition is False
             self.value.grad += grad
             self.value._backward()
 

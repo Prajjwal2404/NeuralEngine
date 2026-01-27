@@ -1,5 +1,5 @@
 from ..config import Typed
-from ..tensor import Tensor, array
+from ..tensor import Tensor
 from ..utils import *
 
 
@@ -106,7 +106,7 @@ class ClassificationMetrics(Metric):
     @no_grad
     def compute(self, z: Tensor, y: Tensor) -> dict[str, Tensor]:
         self.num_classes = self.num_classes or y.shape[-1]
-        c_indices = array(range(self.num_classes)) # Class indices
+        c_indices = range(self.num_classes) # Class indices
 
         # Convert predictions to class indices and encode (one-hot)
         z_idx = z.data.argmax(axis=-1)

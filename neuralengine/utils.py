@@ -214,13 +214,13 @@ def stack(*tensors: Tensor, axis: int = 0) -> Tensor:
 
 @cf.Typed.validate
 def where(condition, tensor: Tensor = None, value: float | Tensor = 0) -> Tensor:
-    """Elementwise selection: if condition then tensor else value.
+    """Elementwise selection: if condition is True then tensor else value.
 
     :param condition: Boolean mask (array-like)
     :param tensor: Tensor to select, if None returns indices
     :param value: Value to fill where condition is False"""
     if tensor is None:
-        return Tensor(cf.xp.where(condition))
+        return Tensor(cf.xp.where(condition)) # indices where condition is True
     return MaskedFill(tensor, condition, value)()
 
 @cf.Typed.validate
@@ -230,7 +230,7 @@ def clip(tensor: Tensor, minimum: float, maximum: float) -> Tensor:
     :param tensor: Input tensor
     :param minimum: Minimum value
     :param maximum: Maximum value"""
-    # min/max clipping
+    # x = min(max(x, minimum), maximum)
     tensor = tensor.masked_fill(tensor < minimum, minimum)
     tensor = tensor.masked_fill(tensor > maximum, maximum)
     return tensor
@@ -269,7 +269,7 @@ def one_hot(labels, num_classes: int = None, dtype: type[cf.DType.INT] = cf.DTyp
     :param dtype: Data type (integer type)"""
     labels = array(labels, dtype=dtype)
     num_classes = num_classes or int(cf.xp.max(labels) + 1)
-    # One-hot encoding: y = e_{ℓ} ∈ ℝ^C
+    # One-hot encoding: y = 1_ℓ ∈ ℝ^C
     encoded = cf.xp.identity(num_classes)[labels]
     return Tensor(encoded, dtype=dtype)
 

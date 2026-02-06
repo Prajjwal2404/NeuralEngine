@@ -1,5 +1,5 @@
-import os
 import pickle as pkl
+from pathlib import Path
 from ..config import Typed, DType, get_device
 from ..tensor import Tensor, NoGrad
 from ..utils import concat
@@ -86,7 +86,7 @@ class Model(metaclass=Typed):
 
         :param filepath: Path to the file from which the model will be loaded.
         :return: Loaded Model instance."""
-        filepath = filepath if filepath.endswith('.pkl') else filepath + '.pkl'
+        filepath = Path(filepath).with_suffix('.pkl')
         with open(filepath, 'rb') as file:
             model = pkl.load(file)
 
@@ -103,7 +103,7 @@ class Model(metaclass=Typed):
         """Loads the model parameters from a file.
 
         :param filepath: Path to the file from which model parameters will be loaded."""
-        filepath = filepath if filepath.endswith('.pkl') else filepath + '.pkl'
+        filepath = Path(filepath).with_suffix('.pkl')
         with open(filepath, 'rb') as file:
             saved_params = pkl.load(file)
 
@@ -128,9 +128,8 @@ class Model(metaclass=Typed):
 
         :param filename: Name of the file where model will be saved.
         :param weights_only: If True, saves only weights; else saves entire model structure."""
-        filename = filename if filename.endswith('.pkl') else filename + '.pkl'
-        filepath = os.path.join(os.getcwd(), filename)
-        os.makedirs(os.path.dirname(filepath), exist_ok=True) # Ensure directory exists
+        filepath = Path(filename).with_suffix('.pkl')
+        filepath.parent.mkdir(parents=True, exist_ok=True) # Ensure directory exists
 
         with open(filepath, 'wb') as file:
             if weights_only: pkl.dump(self.parameters, file)

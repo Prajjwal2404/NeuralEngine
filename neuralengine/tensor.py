@@ -251,11 +251,11 @@ class Add:
         # ∂(a + b)/∂a = 1, ∂(a + b)/∂b = 1
         if self.a.requires_grad:
             grad = self.result.grad
-            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # reshape ∇f(a, b) to a
+            self.a.grad += _reshape_grad(grad, self.a.shape) # reshape ∇f(a, b) to a
             self.a._backward()
         if self.b.requires_grad:
             grad = self.result.grad
-            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # reshape ∇f(a, b) to b
+            self.b.grad += _reshape_grad(grad, self.b.shape) # reshape ∇f(a, b) to b
             self.b._backward()
 
 
@@ -275,11 +275,11 @@ class Multiply:
         # ∂(a·b)/∂a = b, ∂(a·b)/∂b = a
         if self.a.requires_grad:
             grad = self.result.grad * self.b.data
-            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # reshape ∇f(a, b) to a
+            self.a.grad += _reshape_grad(grad, self.a.shape) # reshape ∇f(a, b) to a
             self.a._backward()
         if self.b.requires_grad:
             grad = self.result.grad * self.a.data
-            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # reshape ∇f(a, b) to b
+            self.b.grad += _reshape_grad(grad, self.b.shape) # reshape ∇f(a, b) to b
             self.b._backward()
 
 
@@ -299,11 +299,11 @@ class Divide:
         # ∂(a/b)/∂a = 1/b, ∂(a/b)/∂b = -a/b²
         if self.a.requires_grad:
             grad = self.result.grad / self.b.data
-            self.a.grad += _reshape_grad(grad, self.a.shape, self.result.grad.shape) # reshape ∇f(a, b) to a
+            self.a.grad += _reshape_grad(grad, self.a.shape) # reshape ∇f(a, b) to a
             self.a._backward()
         if self.b.requires_grad:
             grad = -self.result.grad * (self.result.data / self.b.data) # -a/b² = -(a/b)·(1/b) = -c·(1/b)
-            self.b.grad += _reshape_grad(grad, self.b.shape, self.result.grad.shape) # reshape ∇f(a, b) to b
+            self.b.grad += _reshape_grad(grad, self.b.shape) # reshape ∇f(a, b) to b
             self.b._backward()
 
 
@@ -323,11 +323,11 @@ class Power:
         # ∂(a^b)/∂a = b·a^{b-1}, ∂(a^b)/∂b = a^b·ln(a)
         if self.base.requires_grad:
             grad = self.result.grad * (self.exp.data * (self.base.data ** (self.exp.data - 1)))
-            self.base.grad += _reshape_grad(grad, self.base.shape, grad.shape) # reshape ∇f(b, e) to base
+            self.base.grad += _reshape_grad(grad, self.base.shape) # reshape ∇f(b, e) to base
             self.base._backward()
         if self.exp.requires_grad:
             grad = self.result.grad * (self.base.data ** self.exp.data) * cf.xp.log(self.base.data)
-            self.exp.grad += _reshape_grad(grad, self.exp.shape, grad.shape) # reshape ∇f(b, e) to exponent
+            self.exp.grad += _reshape_grad(grad, self.exp.shape) # reshape ∇f(b, e) to exponent
             self.exp._backward()
 
 
@@ -347,11 +347,11 @@ class MatrixMul:
         # ∂(A·B)/∂A = dL/dZ · Bᵗ, ∂(A·B)/∂B = Aᵗ · dL/dZ
         if self.a.requires_grad:
             grad = self.result.grad @ self.b.data.swapaxes(-1, -2)
-            self.a.grad += _reshape_grad(grad, self.a.shape, grad.shape, matmul=True) # reshape ∇f(a, b) to a
+            self.a.grad += _reshape_grad(grad, self.a.shape, matmul=True) # reshape ∇f(a, b) to a
             self.a._backward()
         if self.b.requires_grad:
             grad = self.a.data.swapaxes(-1, -2) @ self.result.grad
-            self.b.grad += _reshape_grad(grad, self.b.shape, grad.shape, matmul=True) # reshape ∇f(a, b) to b
+            self.b.grad += _reshape_grad(grad, self.b.shape, matmul=True) # reshape ∇f(a, b) to b
             self.b._backward()
 
 
@@ -774,8 +774,11 @@ def array(data: Any, dtype: type = None):
     return cf.xp.asarray(data, dtype=dtype)
 
 
-def _safe_limit(data: Any, op_type: str):
-    """Clips tensor data to safe limits for numerical stability."""
+def _safe_limit(data, op_type: Literal['exp', 'log', 'sqrt']):
+    """Clips tensor data to safe limits for numerical stability.
+    
+    :param data: Input tensor data (Tensor.data).
+    :param op_type: Operation type ('exp', 'log', 'sqrt')."""
     dtype = data.dtype
     if cf.xp.issubdtype(dtype, cf.DType.INT):
         info = cf.xp.iinfo(dtype)
@@ -785,24 +788,28 @@ def _safe_limit(data: Any, op_type: str):
     match op_type:
         case 'exp':
             limit = cf.xp.log(info.max).item() - 1
-            return cf.xp.clip(data, -limit, limit)
+            return cf.xp.clip(data, -limit, limit) # Prevent overflow
         case 'log':
-            return cf.xp.maximum(data, info.tiny)
+            return cf.xp.maximum(data, info.tiny) # Prevent log(0 or negative)
         case 'sqrt':
-            return cf.xp.maximum(data, 0.0)
+            return cf.xp.maximum(data, 0.0) # Prevent sqrt(negative)
 
 
-def _reshape_grad(grad, input_shape, out_grad_shape, matmul=False):
-    """Reshape the gradient to match the input shape."""
-    grad_dim = len(out_grad_shape)
-    in_dim = len(input_shape)
-    for _ in range(grad_dim - in_dim):
+def _reshape_grad(grad, input_shape: tuple, matmul: bool = False):
+    """Reshape the gradient to match the input shape.
+    
+    :param grad: Gradient to reshape (Tensor.grad).
+    :param input_shape: Original input Tensor shape.
+    :param matmul: Whether the operation was a matrix multiplication."""
+    grad_ndim = len(grad.shape)
+    in_ndim = len(input_shape)
+    for _ in range(grad_ndim - in_ndim): # Remove extra dimensions
         grad = grad.sum(axis=0)
 
     if matmul:
         return grad
 
-    for n, dim in enumerate(input_shape):
+    for i, dim in enumerate(input_shape): # Reduce broadcasted dimensions
         if dim == 1:
-            grad = grad.sum(axis=n, keepdims=True)
+            grad = grad.sum(axis=i, keepdims=True)
     return grad

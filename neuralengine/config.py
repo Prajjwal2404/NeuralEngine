@@ -127,7 +127,7 @@ class Typed(type):
         if not isinstance(val, origin): return False
 
         # Handle Non-Iterable Generics
-        if not args or 'Callable' in str(origin): return True
+        if not args or issubclass(origin, (Iterator, Callable)): return True
         if origin is type: return isinstance(val, type) and issubclass(val, args[0])
 
         # Handle Iterable Generics

@@ -1,10 +1,11 @@
 import neuralengine.config as cf
+from typing import Any, Callable
 from functools import wraps
 from .tensor import *
 
 
 @cf.Typed.validate
-def tensor(data, requires_grad: bool = False, dtype: type = None) -> Tensor:
+def tensor(data: Any, requires_grad: bool = False, dtype: type = None) -> Tensor:
     """Creates a Tensor from data.
 
     :param data: Input data (array-like)
@@ -261,7 +262,7 @@ def normalize(tensor: Tensor, axis: int = -1, eps: float = 1e-7) -> Tensor:
     return (tensor - minimum) / (maximum - minimum + eps)
 
 @cf.Typed.validate
-def one_hot(labels, num_classes: int = None, dtype: type[cf.DType.INT] = cf.DType.INT32) -> Tensor:
+def one_hot(labels: Any, num_classes: int = None, dtype: type[cf.DType.INT] = cf.DType.INT32) -> Tensor:
     """Converts integer labels to one-hot encoding.
 
     :param labels: Integer labels (array-like)
@@ -273,7 +274,7 @@ def one_hot(labels, num_classes: int = None, dtype: type[cf.DType.INT] = cf.DTyp
     encoded = cf.xp.identity(num_classes)[labels]
     return Tensor(encoded, dtype=dtype)
 
-def no_grad(func):
+def no_grad(func: Callable) -> Callable:
     """Decorator to disable gradient tracking in a function."""
     @wraps(func)
     def wrapper(*args, **kwargs):

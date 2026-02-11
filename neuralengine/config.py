@@ -1,7 +1,7 @@
 import numpy as np
 from functools import wraps
 from inspect import signature
-from typing import Any, Literal, Iterator, get_origin, get_args, get_type_hints
+from typing import Any, Literal, Callable, Iterator, get_origin, get_args, get_type_hints
 
 try:
     import cupy as cp
@@ -73,7 +73,7 @@ class Typed(type):
         cls._enabled = enabled
     
     @classmethod
-    def validate(cls, func = None, strict: bool = False):
+    def validate(cls, func: Callable = None, strict: bool = False) -> Callable:
         """Decorator to validate function arguments based on type hints.
 
         :param func: The function to validate.
@@ -107,7 +107,7 @@ class Typed(type):
         return wrapper
 
     @classmethod
-    def _check(cls, val, hint, strict) -> bool:
+    def _check(cls, val: Any, hint: type, strict: bool) -> bool:
         """Recursively checks if a value matches a type hint."""
         # Handle Any, None and Optional
         if not hint or hint is Any or (not strict and val is None): return True

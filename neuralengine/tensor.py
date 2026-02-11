@@ -806,8 +806,7 @@ def _reshape_grad(grad, input_shape: tuple, matmul: bool = False):
     for _ in range(grad_ndim - in_ndim): # Remove extra dimensions
         grad = grad.sum(axis=0)
 
-    if matmul:
-        return grad
+    if matmul: return grad
 
     for i, dim in enumerate(input_shape): # Reduce broadcasted dimensions
         if dim == 1:

@@ -73,7 +73,7 @@ class DataLoader(metaclass=cf.Typed):
         else:
             self.curr_batch = 0 # Reset for next epoch
             if self.shuffle:
-                split = self.batch_size * self.limit # Val split index
+                split = self.batch_size * len(self) # Val split index
                 self.rng.shuffle(self.indices[:split]) # Shuffle train set
             if hasattr(self, 'epochs'): self.current_epoch += 1
             raise StopIteration

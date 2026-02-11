@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Iterator
 from ..config import Typed, DType
 from ..tensor import Tensor
 from ..utils import *
@@ -73,15 +73,13 @@ class Layer(metaclass=Typed):
             elif isinstance(attr, Tensor):
                 attr.requires_grad = not freeze
 
-    def parameters(self) -> list[Tensor]:
-        """Collects all trainable parameters for the layer."""
-        parameters = []
+    def parameters(self) -> Iterator[Tensor]:
+        """Yields all trainable parameters for the layer."""
         for attr in vars(self).values():
             if isinstance(attr, Layer):
-                parameters.extend(attr.parameters()) # Collect parameters from sub-layers
+                yield from attr.parameters() # Yield parameters from sub-layers
             elif isinstance(attr, Tensor) and attr.requires_grad:
-                parameters.append(attr) # Collect trainable tensors
-        return parameters
+                yield attr # Yield trainable tensors
 
     def to(self, device: Literal['cpu', 'cuda']) -> None:
         """Moves all parameters to the specified device (CPU or CUDA).
@@ -177,15 +175,17 @@ class LSTM(Layer):
 
         output = self.lstm_loop(x, range(self.n_timesteps or x.shape[-2]), c, h, enc_seq)
         if self.bidirectional:
-            output_rev = self.lstm_loop(x, range(self.n_timesteps or (x.shape[-2] - 1), -1, -1), c, h, enc_seq)
+            output_rev = self.lstm_loop(x, range((self.n_timesteps or x.shape[-2]) - 1, -1, -1), c, h, enc_seq)
             # Concatenate outputs from both directions
             output = [concat(o, r, axis=-1) for o, r in zip(output, output_rev)]
 
         return output
 
-    def lstm_loop(self, x: Tensor, timesteps: range, c: Tensor, h: Tensor, enc_seq: Tensor = None):
+    def lstm_loop(self, x: Tensor, timesteps: range, c: Tensor, h: Tensor, enc_seq: Tensor) -> list[Tensor]:
+        """Performs the LSTM computations over the specified timesteps."""
+        if collect_seq := self.return_seq or (self.attention and not enc_seq): 
+            seq_output = []
 
-        if self.return_seq or (self.attention and not enc_seq): seq_output = []
         for t in timesteps:
             h_x = concat(h, x[:, t, :], axis=-1)
             f_t = self.Lf(h_x)  # Forget gate f_t = σ(Wf.[h, x_t] + bf)
@@ -195,7 +195,7 @@ class LSTM(Layer):
             c = f_t * c + i_t * c_tilde  # Cell state c_t = f_t * c_{t-1} + i_t * c~_t
             h = o_t * self.tanh(c)  # Hidden state h_t = o_t * tanh(c_t)
 
-            if self.return_seq or (self.attention and not enc_seq): seq_output.append(h)
+            if collect_seq: seq_output.append(h)
 
             if self.attention:
                 context = self.attention(h, enc_seq or stack(*seq_output, axis=1))

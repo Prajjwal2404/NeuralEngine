@@ -1,5 +1,5 @@
-import pickle as pkl
 from pathlib import Path
+from pickle import load, dump
 from ..config import Typed, DType, get_device
 from ..tensor import Tensor, NoGrad
 from ..utils import concat
@@ -74,7 +74,7 @@ class Model(metaclass=Typed):
             layer.in_size = layer.in_size or self.input_size
             self.input_size = getattr(layer, 'out_size', self.input_size)
 
-            self.parameters[f"layer_{i}"] = layer.parameters() # Collect parameters from the layer
+            self.parameters[f"layer_{i}"] = list(layer.parameters()) # Collect parameters from the layer
             
         self.layers = layers
         self.optimizer.parameters = [p for params in self.parameters.values() for p in params] # Flatten lists
@@ -88,7 +88,7 @@ class Model(metaclass=Typed):
         :return: Loaded Model instance."""
         filepath = Path(filepath).with_suffix('.pkl')
         with open(filepath, 'rb') as file:
-            model = pkl.load(file)
+            model = load(file)
 
         if not isinstance(model, cls):
             raise ValueError("Loaded object is not a Model instance.")
@@ -105,7 +105,7 @@ class Model(metaclass=Typed):
         :param filepath: Path to the file from which model parameters will be loaded."""
         filepath = Path(filepath).with_suffix('.pkl')
         with open(filepath, 'rb') as file:
-            saved_params = pkl.load(file)
+            saved_params = load(file)
 
         device = get_device()
         for i in range(len(self.layers)):
@@ -132,8 +132,8 @@ class Model(metaclass=Typed):
         filepath.parent.mkdir(parents=True, exist_ok=True) # Ensure directory exists
 
         with open(filepath, 'wb') as file:
-            if weights_only: pkl.dump(self.parameters, file)
-            else: pkl.dump(self, file)
+            if weights_only: dump(self.parameters, file)
+            else: dump(self, file)
 
 
     def train(self, dataloader: DataLoader, epochs: int = 10, patience: int = 0, ckpt_interval: int = 0) -> None:

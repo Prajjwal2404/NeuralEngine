@@ -31,11 +31,9 @@ class Metric(metaclass=Typed):
     def __repr__(self) -> str:
         """String representation of the metric with its value if computed."""
         if self.count > 0:
-            metric_str = ""
-            for key, value in self.metric.items():
-                metric_str += f"{key}: {(value / self.count):.4f}, "
+            metrics = [f'{k}: {v / self.count:.4f}' for k, v in self.metric.items()]
             self.reset() # Reset after printing
-            return metric_str[:-2]  # Remove trailing comma and space
+            return ', '.join(metrics) # Return all averaged metrics as a string
         else: return "No metric computed yet."
         
     def reset(self) -> None:
@@ -134,9 +132,9 @@ class ClassificationMetrics(Metric):
         if self.rec: metrics["Recall"] = rec()
         if self.f1:
             # F1 = 2 * Precision * Recall / (Precision + Recall)
-            p, r = prec(), rec()
-            denom = p + r
-            metrics["F1 Score"] = 2 * p * r / where(denom > 0, denom, self.eps)
+            P, R = prec(), rec()
+            denom = P + R
+            metrics["F1 Score"] = 2 * P * R / where(denom > 0, denom, self.eps)
         return metrics
 
 

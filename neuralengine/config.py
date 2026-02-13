@@ -1,19 +1,21 @@
 import numpy as np
 from functools import wraps
 from inspect import signature
-from typing import Any, Literal, Callable, Iterator, get_origin, get_args, get_type_hints
+from typing import Any, Literal, Callable, Iterator, \
+ParamSpec, TypeVar, get_origin, get_args, get_type_hints
 
-try:
-    import cupy as cp
-    _has_cuda: bool = cp.cuda.is_available()
+try: import cupy as cp
 except ImportError:
     cp = None
-    _has_cuda: bool = False
     print("Cupy is not installed or no CUDA device is available. Falling back to NumPy.")
 
 
+P = ParamSpec('P') # Parameter specification for type hints
+R = TypeVar('R') # Return type variable for type hints
+
 xp = np # Backend array provider. Default to NumPy
 _current_device: Literal['cpu', 'cuda'] = 'cpu' # Default device
+_has_cuda: bool = cp.cuda.is_available() if cp else False # CUDA availability
 
 
 @(lambda cls: cls()) # Singleton instance
@@ -73,7 +75,7 @@ class Typed(type):
         cls._enabled = enabled
     
     @classmethod
-    def validate(cls, func: Callable = None, strict: bool = False) -> Callable:
+    def validate(cls, func: Callable[P, R] = None, strict: bool = False) -> Callable[P, R]:
         """Decorator to validate function arguments based on type hints.
 
         :param func: The function to validate.
@@ -83,7 +85,7 @@ class Typed(type):
         sig = signature(func)
         
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             hints = get_type_hints(func)
             (bound := sig.bind(*args, **kwargs)).apply_defaults()
             for name, val in bound.arguments.items():
@@ -97,7 +99,7 @@ class Typed(type):
                 if not all(cls._check(v, hint, strict) for v in norm_val):
                     raise TypeError(f"Argument '{name}' expected {hint}, got {type(val)}")
 
-            result = func(*args, **kwargs)
+            result: R = func(*args, **kwargs)
             ret_hint = hints.get('return', sig.return_annotation)
             if ret_hint is not sig.empty and not cls._check(result, ret_hint, strict):
                 raise TypeError(f"Return value expected {ret_hint}, got {type(result)}")
@@ -128,7 +130,7 @@ class Typed(type):
 
         # Handle Non-Iterable Generics
         if not args or issubclass(origin, (Iterator, Callable)): return True
-        if origin is type: return isinstance(val, type) and issubclass(val, args[0])
+        if origin is type: return issubclass(val, args[0]) # Type[T] checks
 
         # Handle Iterable Generics
         if origin is dict:

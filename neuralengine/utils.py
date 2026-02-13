@@ -274,10 +274,10 @@ def one_hot(labels: Any, num_classes: int = None, dtype: type[cf.DType.INT] = cf
     encoded = cf.xp.identity(num_classes)[labels]
     return Tensor(encoded, dtype=dtype)
 
-def no_grad(func: Callable) -> Callable:
+def no_grad(func: Callable[cf.P, cf.R]) -> Callable[cf.P, cf.R]:
     """Decorator to disable gradient tracking in a function."""
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: cf.P.args, **kwargs: cf.P.kwargs) -> cf.R:
         with NoGrad():
             return func(*args, **kwargs)
     return wrapper

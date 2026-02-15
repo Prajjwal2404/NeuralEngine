@@ -53,7 +53,7 @@ def randn(*shape: int, xavier: bool = False, requires_grad: bool = False, \
     :param requires_grad: Track gradients
     :param dtype: Data type"""
     data = cf.xp.random.randn(*shape)
-    if xavier: data /= cf.xp.sqrt(shape[0]) # x ~ N(0, 1/√fan_in)
+    if xavier: data /= shape[0] ** 0.5 # x ~ N(0, 1/√fan_in)
     return Tensor(data, requires_grad=requires_grad, dtype=dtype)
 
 @cf.Typed.validate

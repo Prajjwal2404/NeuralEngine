@@ -145,7 +145,6 @@ class LSTM(Layer):
         super().__init__()
         self.has_bias = bias
         self.out_size = lstm_units
-        if in_size: self.in_size = in_size
         self.n_timesteps = n_timesteps
         self.enc_size = enc_size
         self.return_seq = return_seq
@@ -155,6 +154,7 @@ class LSTM(Layer):
         self.attention = MultiplicativeAttention(lstm_units) if attention else None
         self.sigmoid = Sigmoid()
         self.tanh = Tanh()
+        if in_size: self.in_size = in_size
 
     def _initialize_parameters(self) -> None:
         if self.attention:
@@ -224,7 +224,7 @@ class MultiplicativeAttention(Layer):
     def forward(self, x: Tensor, y: Tensor) -> Tensor:
         # scores = (q.Wa.kᵗ) / √d_k
         q = x.reshape(x.shape[0], 1, -1)
-        scores = (q @ self.Wa @ y.transpose(0, 2, 1)) / (self.in_size[-1] ** 0.5)
+        scores = (self.Wa(q) @ y.transpose(0, 2, 1)) / (self.in_size[-1] ** 0.5)
         attn_weights = self.softmax(scores)
 
         z = attn_weights @ y
@@ -259,9 +259,9 @@ class MultiHeadAttention(Layer):
         batch_size, seq_len_q, _ = x.shape
         seq_len_kv = y.shape[1] if y else seq_len_q
 
-        q = x @ self.Wq
-        k = (y or x) @ self.Wk
-        v = (y or x) @ self.Wv
+        q = self.Wq(x)
+        k = self.Wk(y or x)
+        v = self.Wv(y or x)
 
         # Result: (batch_size, num_heads, seq_len, head_dim)
         q = q.reshape(batch_size, seq_len_q, self.num_heads, self.head_dim).transpose(0, 2, 1, 3)
@@ -276,7 +276,7 @@ class MultiHeadAttention(Layer):
         z = attn_weights @ v
         # Result: (batch_size, seq_len_q, num_heads * head_dim)
         z = z.transpose(0, 2, 1, 3).reshape(batch_size, seq_len_q, self.out_size)
-        z = z @ self.Wo # Final output projection
+        z = self.Wo(z) # Final output projection
         return z
 
 
@@ -290,12 +290,14 @@ class Embedding(Layer):
         """
         super().__init__()
         self.out_size = embed_size
-        self.in_size = vocab_size
         self.timesteps = timesteps
-        self.TE = Linear(embed_size, vocab_size, bias=False) # Token Embedding matrix
+        self.in_size = vocab_size
+
+    def _initialize_parameters(self) -> None:
+        # TE: Token Embeddings, PE: Positional Encodings
+        self.TE = randn(self.in_size[-1], self.out_size, requires_grad=True, dtype=self.dtype)
         if self.timesteps:
-            # Positional encoding for n timesteps
-            self.PE = Linear(embed_size, timesteps, bias=False)
+            self.PE = randn(self.timesteps, self.out_size, requires_grad=True, dtype=self.dtype)
 
     def forward(self, x: Tensor) -> Tensor:
         # z = TE[x]
@@ -323,9 +325,9 @@ class LayerNorm(Layer):
 
     def forward(self, x: Tensor) -> Tensor:
         # z = (x - μ) / σ
-        mean = x.mean(axis=-1, keepdims=True)
-        var = x.var(axis=-1, keepdims=True)
-        z = (x - mean) / sqrt(var + self.eps)
+        mu = mean(x, axis=-1, keepdims=True)
+        variance = var(x, axis=-1, keepdims=True)
+        z = (x - mu) / sqrt(variance + self.eps)
         if self.gamma and self.beta:
             # z = γ · z + β
             z = self.gamma * z + self.beta

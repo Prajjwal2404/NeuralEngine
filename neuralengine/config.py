@@ -37,9 +37,9 @@ class DType:
     UINT64 = xp.uint64
     BOOL = xp.bool_
 
-    def __getitem__(cls, key: str) -> type:
+    def __getitem__(self, key: str) -> type:
         """Allows access to data types by key."""
-        return getattr(cls, key)
+        return getattr(self, key)
 
     def __iter__(self) -> Iterator[type]:
         """Iterator over the data types."""

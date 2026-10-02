@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://raw.githubusercontent.com/Prajjwal2404/NeuralEngine/refs/heads/main/NeuralEngine.webp" alt="NeuralEngine Cover" width="600" />
+    <img src="https://raw.githubusercontent.com/Prajjwal2404/NeuralEngine/refs/heads/main/NeuralEngine.webp" alt="NeuralEngine Cover" width="600" style="border-radius:10px" />
 </p>
 
 <p align="center">
@@ -153,7 +153,7 @@ NeuralEngine offers the following core capabilities:
 - `ne.LSTM(...)`: Long Short-Term Memory layer with options for attention, bidirectionality, sequence/state output. You can build deep LSTM networks by stacking multiple LSTM layers. When building encoder-decoder models, ensure that the hidden units for decoder's first layer is set correctly:
     - For a standard LSTM, the hidden state shape for the last timestep is `(batch, hidden_units)`.
     - For a bidirectional LSTM, the hidden and cell state shape becomes `(batch, hidden_units * 2)`.
-    - If attention is enabled, the hidden state shape is `(batch, 2 * hidden_units)` (self-attention), if `enc_size` is provided, the hidden state shape is `(batch, hidden_units + enc_size)` (cross-attention).
+    - With attention, hidden state becomes `(batch, hidden_units + hidden_units)` (default) or `(batch, hidden_units + ctx_size)`. Supports self-attention or cross-attention via `enc_seq`.
     - If LSTM layers require state initializations from prior layers, set the hidden units accordingly to match the output shape of the previous LSTM (including adjustments for bidirectionality and attention).
 - `ne.MultiplicativeAttention(units, *in_size)`: Soft attention mechanism for sequence models.
 - `ne.MultiHeadAttention(*in_size, num_heads=1)`: Multi-head attention layer for transformer and sequence models.

@@ -1,3 +1,4 @@
+from math import prod
 from typing import Literal, Iterator
 from ..config import Typed, DType
 from ..tensor import Tensor
@@ -38,7 +39,7 @@ class Layer(metaclass=Typed):
         return self._in_size
     
     @in_size.setter
-    def in_size(self, size: tuple[int, ...] | int) -> None:
+    def in_size(self, size: int | tuple[int, ...]) -> None:
         size = size if isinstance(size, tuple) else (size,)
         self._in_size = size
         self._initialize_parameters()
@@ -128,15 +129,15 @@ class Linear(Layer):
 class LSTM(Layer):
     """Long Short-Term Memory layer."""
     def __init__(self, lstm_units: int, *in_size: int, n_timesteps: int = None, bias: bool = True, \
-                 attention: bool = False, enc_size: int = None, return_seq: bool = False, \
+                 attention: bool = False, ctx_size: int = None, return_seq: bool = False, \
                  return_state: bool = False, bidirectional: bool = False, use_output: tuple[int, ...] = -1):
         """
         :param lstm_units: Number of LSTM units (output size).
         :param in_size: Number of input features or shape of input tensor.
         :param n_timesteps: Number of timesteps in the input sequence.
-        :param bias: Include bias term.
+        :param bias: Whether to include bias terms in the LSTM gates.
         :param attention: Use multiplicative attention mechanism.
-        :param enc_size: Size of encoder outputs (for Cross-Attention).
+        :param ctx_size: Context vector size for cross or self-attention.
         :param return_seq: Return hidden states for all timesteps.
         :param return_state: Return final cell and hidden states.
         :param bidirectional: Use bidirectional LSTM.
@@ -146,22 +147,18 @@ class LSTM(Layer):
         self.has_bias = bias
         self.out_size = lstm_units
         self.n_timesteps = n_timesteps
-        self.enc_size = enc_size
         self.return_seq = return_seq
         self.return_state = return_state
         self.bidirectional = bidirectional
+        self.ctx_size = (ctx_size or lstm_units) if attention else 0 # Default to self-attention
         self.use_output = use_output if isinstance(use_output, tuple) else (use_output,)
-        self.attention = MultiplicativeAttention(lstm_units) if attention else None
+        self.attention = attention and MultiplicativeAttention(lstm_units, self.ctx_size)
         self.sigmoid = Sigmoid()
         self.tanh = Tanh()
         if in_size: self.in_size = in_size
 
     def _initialize_parameters(self) -> None:
-        if self.attention:
-            self.attention.in_size = self.enc_size or self.out_size
-            
         # LSTM gate weights and biases
-        self.ctx_size = self.attention.in_size[-1] if self.attention else 0
         concat_size = self.out_size + self.in_size[-1] + self.ctx_size
         self.Lf = Linear(self.out_size, concat_size, bias=self.has_bias, activation=self.sigmoid)
         self.Li = Linear(self.out_size, concat_size, bias=self.has_bias, activation=self.sigmoid)
@@ -357,9 +354,8 @@ class Flatten(Layer):
     def __init__(self):
         super().__init__()
 
-    def _initialize_parameters(self, prod: int = 1) -> None:
-        for dim in self.in_size: prod *= dim
-        self.out_size = prod
+    def _initialize_parameters(self) -> None:
+        self.out_size = prod(self.in_size)
 
     def forward(self, x: Tensor) -> Tensor:
         if len(x.shape) < 2: return x # Already flat

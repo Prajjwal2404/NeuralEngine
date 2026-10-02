@@ -62,8 +62,7 @@ class Model(metaclass=Typed):
 
             # If stacking LSTM layers, update input size and output selection
             if isinstance(layer, LSTM) and isinstance(prev_layer, LSTM):
-                out_size = prev_layer.out_size
-                if prev_layer.attention: out_size += prev_layer.enc_size or out_size
+                out_size = prev_layer.out_size + prev_layer.ctx_size
                 if prev_layer.bidirectional: out_size *= 2
                 self.input_size = (*prev_layer.in_size[:-1], out_size)
                 prev_layer.return_seq = True
